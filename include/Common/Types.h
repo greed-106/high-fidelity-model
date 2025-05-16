@@ -1,0 +1,1 @@
+#ifndef BASIC_TYPES_H#define BASIC_TYPES_Hnamespace ProVivid {    enum class PixelFormat {        YUV420P10LE,        YUV422P10LE,        YUV444P10LE    };    enum ColorComp {        Y = 0,        U,        V,        N_COLOR_COMP    };    enum SubBandType {        LL = 0,        LH,        HL,        HH,        N_SUB_BANDS    };}#endif  // BASIC_TYPES_H
