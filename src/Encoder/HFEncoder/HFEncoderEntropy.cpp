@@ -34,7 +34,7 @@
 #include "Utils.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     HFEncoderEntropy::HFEncoderEntropy() {
     }
 

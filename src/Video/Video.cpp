@@ -34,7 +34,7 @@
 #include "Utils.h"
 #include "Video.h"
 
-namespace ProVivid {
+namespace HFM {
     Video::Video(PixelFormat pixelFormat, uint32_t frameCount, uint32_t width, uint32_t height, 
         const std::string& inputFilePath) : pixelFormat_(pixelFormat), frameCount_(frameCount) {
         this->GetSize(width, height);

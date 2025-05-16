@@ -34,7 +34,7 @@
 #include "ArgParse.h"
 #include "Utils.h"
 #include "Tool.h"
-namespace ProVivid {
+namespace HFM {
 #define REGIST_KWARG(type, name, options, description, value) \
     type& name = kwarg_ext(options, description).set_default(value);
 

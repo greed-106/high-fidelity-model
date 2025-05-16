@@ -30,7 +30,7 @@
 */
 #include "HFTransITrans.h"
 
-namespace ProVivid {
+namespace HFM {
     HFTransITrans::HFTransITrans() {
     }
     

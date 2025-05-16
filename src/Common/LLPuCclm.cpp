@@ -30,7 +30,7 @@
 */
 #include "LLPuCclm.h"
 
-namespace ProVivid {
+namespace HFM {
     LLPuCclm::LLPuCclm() {
     }
     

@@ -37,7 +37,7 @@
 #include "BasicTypes.h"
 #include "FrameBuffer.h"
 
-namespace ProVivid {
+namespace HFM {
     class Video {
     public:
         Video() = delete;

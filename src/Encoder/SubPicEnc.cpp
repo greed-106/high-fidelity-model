@@ -39,7 +39,7 @@
 #include "Wavelet.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     SubPicEnc::SubPicEnc(PixelFormat pixelFormat, uint32_t picWidth, uint32_t picHeight, uint32_t subPicWidth, uint32_t subPicHeight) {
         SubPic::Init(pixelFormat, picWidth, picHeight, subPicWidth, subPicHeight);
         subBandPixels_[Y] = (subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH) >> 2;

@@ -41,7 +41,7 @@
 #include "LLPuRecon.h"
 
 
-namespace ProVivid {
+namespace HFM {
     class LLDecoder {
     public:
         LLDecoder();

@@ -30,7 +30,7 @@
 */
 #include "EncoderQuant.h"
 
-namespace ProVivid {
+namespace HFM {
     EncoderQuant::EncoderQuant() {
     }
 

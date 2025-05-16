@@ -31,7 +31,7 @@
 #ifndef TOOL_H
 #define TOOL_H
 
-namespace ProVivid {
+namespace HFM {
 #define DWT_97 0
 #define PLANAR 0
 #define CCLM 0

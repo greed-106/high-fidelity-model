@@ -34,7 +34,7 @@
 #include "Const.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     LLDecoderEntropy::LLDecoderEntropy(Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo) {
         bitstreamCabacLl_ = {0};
 #if CABAC

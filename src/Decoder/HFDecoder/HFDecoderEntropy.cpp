@@ -35,7 +35,7 @@
 #include "Const.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     HFDecoderEntropy::HFDecoderEntropy() {
     }
 

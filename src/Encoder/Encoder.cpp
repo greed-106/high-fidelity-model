@@ -39,7 +39,7 @@
 #include "cabac.h"
 #include "context_ini.h"
 
-namespace ProVivid {
+namespace HFM {
     Encoder::Encoder(std::string recFile, std::string recLLFile, uint32_t frameCount, uint32_t bitDepth, uint32_t intraPeriod)
         : recFile_(std::move(recFile)), recLLFile_(std::move(recLLFile)), frameCount_(frameCount), bitDepth_(bitDepth), intraPeriod_(intraPeriod) {
         if (!recFile_.empty()) {

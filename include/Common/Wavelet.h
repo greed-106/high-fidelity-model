@@ -34,7 +34,7 @@
 #include "BasicTypes.h"
 #include "FrameBuffer.h"
 
-namespace ProVivid {
+namespace HFM {
     constexpr uint32_t DWT_SHIFT = 2;
     constexpr uint32_t DWT97_FILTER_LEN_LO = 9;
     constexpr uint32_t DWT97_FILTER_LEN_HI = 7;

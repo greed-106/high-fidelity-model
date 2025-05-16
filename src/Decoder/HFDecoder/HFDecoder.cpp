@@ -30,7 +30,7 @@
 */
 #include "HFDecoder.h"
 
-namespace ProVivid {
+namespace HFM {
     HFDecoder::HFDecoder() {
         hfIQuant_ = std::make_shared<IQuant>();
         hfTransITrans_ = std::make_shared<HFTransITrans>();

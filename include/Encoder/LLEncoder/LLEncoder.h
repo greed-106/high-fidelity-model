@@ -46,7 +46,7 @@
 #include "Utils.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     class LLEncoder {
     public:
         LLEncoder();

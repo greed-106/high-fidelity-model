@@ -44,7 +44,7 @@
 //#include "biariencode.h"
 //#include "cabac.h"
 //
-namespace ProVivid {
+namespace HFM {
     Decoder::Decoder(uint32_t bitDepth, std::string decFile, std::string decLLFile, const std::string& bitstreamFile, uint32_t intraPeriod)
         : bitDepth_(bitDepth), decFile_(std::move(decFile)), decLLFile_(std::move(decLLFile)) {
         seqPicHeaderInfo_.frameCount = 1;

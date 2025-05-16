@@ -38,7 +38,7 @@
 #include "Table.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
 
     class LLPuITrans {
     public:

@@ -36,7 +36,7 @@
 #include "Wavelet.h"
 #include <string.h>
 
-namespace ProVivid {
+namespace HFM {
     Status WriteRecPic(const SharedBufferStorage& recPic,
                        const std::vector<std::pair<uint32_t, uint32_t>>& size,
                        std::ofstream& recFileHandle) {

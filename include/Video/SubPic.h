@@ -38,7 +38,7 @@
 #include "BasicTypes.h"
 #include "FrameBuffer.h"
 
-namespace ProVivid {
+namespace HFM {
     class SubPic {
     public:
         SubPic() = default;

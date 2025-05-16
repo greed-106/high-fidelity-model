@@ -30,7 +30,7 @@
 */
 #include "LLPuITrans.h"
 
-namespace ProVivid {
+namespace HFM {
     LLPuITrans::LLPuITrans() {
         coeffITransVer_.resize(MB_SIZE*MB_SIZE, 0);
     }

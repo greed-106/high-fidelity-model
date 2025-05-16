@@ -35,7 +35,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace ProVivid {
+namespace HFM {
     using Pel = int32_t;
     using PelStorage = int16_t;
 

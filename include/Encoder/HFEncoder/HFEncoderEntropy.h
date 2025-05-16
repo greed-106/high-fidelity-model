@@ -38,7 +38,7 @@ extern "C" {
 
 #include <vector>
 
-namespace ProVivid {
+namespace HFM {
     extern int VLCTable0(int value);
 
     typedef struct {

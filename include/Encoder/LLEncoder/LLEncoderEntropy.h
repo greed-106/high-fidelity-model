@@ -38,7 +38,7 @@ extern "C" {
 
 #include <vector>
 
-namespace ProVivid {
+namespace HFM {
     class LLEncoderEntropy {
     public:
         LLEncoderEntropy();

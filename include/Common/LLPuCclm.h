@@ -38,7 +38,7 @@
 #include "Utils.h"
 #include "algorithm"
 
-namespace ProVivid {
+namespace HFM {
 
     class LLPuCclm {
     public:

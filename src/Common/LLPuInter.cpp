@@ -32,7 +32,7 @@
 #include "LLPuInter.h"
 #include "Wavelet.h"
 
-namespace ProVivid {
+namespace HFM {
     LLPuInter::LLPuInter() {
         pred_ = std::make_shared<PixelBuffer>(MB_SIZE*MB_SIZE, 0);
         for (uint32_t i = 0; i < N_COLOR_COMP; i++) {

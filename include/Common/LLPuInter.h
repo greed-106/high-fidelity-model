@@ -38,7 +38,7 @@
 #include "BasicTypes.h"
 #include "Const.h"
 
-namespace ProVivid {
+namespace HFM {
     class LLPuInter {
     public:
         LLPuInter();

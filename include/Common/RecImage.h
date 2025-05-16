@@ -35,7 +35,7 @@
 #include "FrameBuffer.h"
 #include "Status.h"
 
-namespace ProVivid {
+namespace HFM {
     std::pair<uint32_t, uint32_t> GetRecSubPicSize(SubPicInfo& info, std::pair<uint32_t, uint32_t> size);
 
     void RecLLSubPic(SubPicInfoMap& subPicInfo, const std::vector<SharedFrameBuffer>& subBandLL,

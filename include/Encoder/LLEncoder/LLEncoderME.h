@@ -39,7 +39,7 @@
 #include "LLPuInter.h"
 #include "Utils.h"
 
-namespace ProVivid {
+namespace HFM {
     class LLEncoderME : public LLPuInter {
     public:
         LLEncoderME();

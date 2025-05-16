@@ -36,7 +36,7 @@
 #include "FrameBuffer.h"
 #include "Const.h"
 
-namespace ProVivid {
+namespace HFM {
 
     class LLPuRecon {
     public:

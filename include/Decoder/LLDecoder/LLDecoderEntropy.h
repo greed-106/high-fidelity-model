@@ -41,7 +41,7 @@ extern "C" {
 
 #include <vector>
 
-namespace ProVivid {
+namespace HFM {
     class LLDecoderEntropy {
     public:
         LLDecoderEntropy(Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo);

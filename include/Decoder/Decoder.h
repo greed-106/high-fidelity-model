@@ -45,7 +45,7 @@ extern "C" {
 //#include "SubPic.h"
 #include "Timer.h"
 //
-namespace ProVivid {
+namespace HFM {
     class Decoder {
     public:
         Decoder() = delete;

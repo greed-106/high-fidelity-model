@@ -33,7 +33,7 @@
 #include "Wavelet.h"
 #include "Tool.h"
 
-namespace ProVivid {
+namespace HFM {
     bool DWT53(const Pel* input, int len, Pel* subBandLF, Pel* subBandHF, int strideIn, int strideOut) {
         int lenLo = (len + 1) >> 1;
         int lenHi = len - lenLo;

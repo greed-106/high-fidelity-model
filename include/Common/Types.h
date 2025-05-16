@@ -31,7 +31,7 @@
 #ifndef BASIC_TYPES_H
 #define BASIC_TYPES_H
 
-namespace ProVivid {
+namespace HFM {
     enum class PixelFormat {
         YUV420P10LE,
         YUV422P10LE,

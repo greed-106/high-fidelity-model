@@ -49,7 +49,7 @@ namespace {
     const int EXIT_CODE_ERROR = 1;
 } // namespace
 
-using namespace ProVivid;
+using namespace HFM;
 
 SeqPicHeaderInfo ParsePicHeader(const Arguments& args)
 {

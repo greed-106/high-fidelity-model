@@ -30,7 +30,7 @@
 */
 #include "LLPuIntra.h"
 
-namespace ProVivid {
+namespace HFM {
     LLPuIntra::LLPuIntra() {
         for (int i = MB_NBR_UP; i < N_NBR; i++) {
             Nbr_[i] = std::make_shared<PixelBuffer>(MB_SIZE, 0);

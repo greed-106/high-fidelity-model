@@ -30,7 +30,7 @@
 */
 #include "LLEncoder.h"
 
-namespace ProVivid {
+namespace HFM {
     LLEncoder::LLEncoder() {
         puPred_.resize(MB_SIZE * MB_SIZE);
         predResidual_.resize(MB_SIZE * MB_SIZE);

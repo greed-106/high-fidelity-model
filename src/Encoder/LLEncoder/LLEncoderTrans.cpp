@@ -30,7 +30,7 @@
 */
 #include "LLEncoderTrans.h"
 
-namespace ProVivid {
+namespace HFM {
     LLEncoderTrans::LLEncoderTrans() {
         coeffTransHor_.resize(MB_SIZE*MB_SIZE, 0);
     }

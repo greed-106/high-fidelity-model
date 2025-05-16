@@ -33,7 +33,7 @@
 #include "SubPic.h"
 #include "Utils.h"
 
-namespace ProVivid {
+namespace HFM {
     void SubPic::Init(PixelFormat pixelFormat, uint32_t picWidth, uint32_t picHeight, uint32_t subPicWidth, uint32_t subPicHeight) {
         pixelFormat_ = pixelFormat;
         uint32_t alignSize = MB_SIZE << (pixelFormat_ == PixelFormat::YUV444P10LE ? 0 : 1);

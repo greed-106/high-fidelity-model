@@ -41,7 +41,7 @@
 #include "HFTransITrans.h"
 #include <cstring>
 
-namespace ProVivid {
+namespace HFM {
     class HFEncoder {
     public:
         HFEncoder();

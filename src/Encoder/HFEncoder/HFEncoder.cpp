@@ -30,7 +30,7 @@
 */
 #include "HFEncoder.h"
 
-namespace ProVivid {
+namespace HFM {
     HFEncoder::HFEncoder() {
         mbOri_.resize(MB_SIZE*MB_SIZE);
         mbHad_.resize(MB_SIZE*MB_SIZE);

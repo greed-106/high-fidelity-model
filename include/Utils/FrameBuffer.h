@@ -35,7 +35,7 @@
 #include <memory>
 #include "BasicTypes.h"
 
-namespace ProVivid {
+namespace HFM {
     using BufferStorage = std::vector<PelStorage>;
     using SharedBufferStorage = std::shared_ptr<BufferStorage>;
     using FrameBuffer = std::vector<Pel>;

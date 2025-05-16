@@ -41,7 +41,7 @@
 #include "FrameBuffer.h"
 #include "Table.h"
 
-namespace ProVivid {
+namespace HFM {
 
     typedef enum {
         PSNR_1020,

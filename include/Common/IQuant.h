@@ -37,7 +37,7 @@
 #include "Const.h"
 #include "Utils.h"
 
-namespace ProVivid {
+namespace HFM {
 
     class IQuant {
     public:

@@ -33,7 +33,7 @@
 
 #include <istream>
 
-namespace ProVivid {
+namespace HFM {
 #define MB_SIZE (8)
 
 #define DWT_SUB_PIC_OFFSET (1024)

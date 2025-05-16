@@ -38,7 +38,7 @@
 #include "Utils.h"
 #include "Table.h"
 
-namespace ProVivid {
+namespace HFM {
     class EncoderQuant {
     public:
         EncoderQuant();

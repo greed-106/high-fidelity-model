@@ -39,7 +39,7 @@ extern "C" {
 #include <cstdint>
 #include <vector>
 
-namespace ProVivid {
+namespace HFM {
 
     typedef struct {
         uint8_t bandIdx;

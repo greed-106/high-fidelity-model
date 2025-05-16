@@ -40,7 +40,7 @@
 #include "HFTransITrans.h"
 
 
-namespace ProVivid {
+namespace HFM {
     class HFDecoder {
     public:
         HFDecoder();

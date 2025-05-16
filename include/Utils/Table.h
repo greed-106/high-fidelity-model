@@ -33,7 +33,7 @@
 
 #include <istream>
 
-namespace ProVivid {
+namespace HFM {
     const int8_t DST7_W4[4][4] = {
         {15, 27, 37, 42},
         {37, 37, 0, -37},

@@ -46,7 +46,7 @@ namespace {
     const int EXIT_CODE_ERROR = 1;
 } // namespace
 
-using namespace ProVivid;
+using namespace HFM;
 
 struct Arguments: public argparse::Args {
     std::string& bitstream = kwarg("b,Bitstream", "input bitstream file");

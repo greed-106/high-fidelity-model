@@ -33,7 +33,7 @@
 
 #include <istream>
 
-namespace ProVivid {
+namespace HFM {
     enum class Status {
         SUCCESS = 0,
         ERROR_UNKNOWN,

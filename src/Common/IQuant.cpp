@@ -30,7 +30,7 @@
 */
 #include "IQuant.h"
 
-namespace ProVivid {
+namespace HFM {
     IQuant::IQuant() {
     }
     

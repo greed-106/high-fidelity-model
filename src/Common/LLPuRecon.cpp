@@ -30,7 +30,7 @@
 */
 #include "LLPuRecon.h"
 
-namespace ProVivid {
+namespace HFM {
     LLPuRecon::LLPuRecon(std::shared_ptr<LLPuITrans> LLPUITrans, std::shared_ptr<IQuant> IQuant) {
         LLPuITrans_ = LLPUITrans;
         IQuant_ = IQuant;

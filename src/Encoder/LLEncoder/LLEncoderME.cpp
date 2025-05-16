@@ -31,7 +31,7 @@
 #include "LLEncoderME.h"
 #include "Wavelet.h"
 
-namespace ProVivid {
+namespace HFM {
     LLEncoderME::LLEncoderME() {
     }
 

@@ -37,7 +37,7 @@
 #include <unordered_map>
 #include "SubPic.h"
 
-namespace ProVivid {
+namespace HFM {
     class SubPicEnc : public SubPic{
     public:
         SubPicEnc() = delete;

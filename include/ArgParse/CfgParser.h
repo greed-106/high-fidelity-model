@@ -38,7 +38,7 @@
 #include "Status.h"
 #include "Utils.h"
 
-namespace ProVivid {
+namespace HFM {
     class CfgParser {
     public:
         CfgParser(int argc, const char** argv) {

@@ -31,7 +31,7 @@
 #include <memory>
 #include "LLDecoder.h"
 
-namespace ProVivid {
+namespace HFM {
     LLDecoder::LLDecoder() {
         puPred_.resize(MB_SIZE * MB_SIZE);
         coeff_.resize(MB_SIZE * MB_SIZE);
