@@ -16,6 +16,7 @@
 #ifndef _CONTEXT_INI_
 #define _CONTEXT_INI_
 
+#include <stdint.h>
 
 #define LL_SUBBLOCK_LOG2    (4)
 #define REM_PREFIX_LENGTH 3
@@ -28,6 +29,18 @@
 #define NUM_LAST_CTX  15
 #define NUM_ONE_CTX   8
 
+
+#define LBAC_PROB_BITS         9
+#define LBAC_MAX_PROB        ((1 << LBAC_PROB_BITS) - 1) // equal to PROB_LPS + PROB_MPS
+#define LBAC_HALF_PROB        (LBAC_MAX_PROB >> 1)
+#if LBAC_PROB_BITS >= 9
+#define LBAC_GET_LG_PMPS(p)   (p >> (LBAC_PROB_BITS - 9))
+#else
+#define LBAC_GET_LG_PMPS(p)   (p << (9 - LBAC_PROB_BITS))
+#endif
+#define LBAC_QUAR_HALF_PROB   (1 << 8)
+
+#define LBAC_UPDATE_CWR        4
 
 enum MODEL_INDXES {
     ZFLAG_ROW_MODEL_MODE_band0 = 0,
@@ -122,9 +135,8 @@ typedef BiContextType *BiContextTypePtr;
 
 struct bi_context_type
 {
-    unsigned long  count;
-    unsigned char state; // index into state-table CP
-    unsigned char  MPS;  //Least Probable Symbol 0/1 CP  
+    uint8_t  MPS;
+    uint16_t prob_lps;
 };
 
 typedef struct
@@ -148,8 +160,8 @@ typedef struct
     BiContextType  zFlag[NUM_MODELS_Z_FLAGS];
 } HighBandInfoContexts;
 
-void InitContextsLl(int qp, TextureInfoContexts *texCtx, MotionInfoContexts *motCtx);
-void InitContextsHf(int qp, HighBandInfoContexts *highBandCtx);
-extern void biari_init_context(int qp, BiContextTypePtr ctx, const char* ini);
+void InitContextsLl(TextureInfoContexts *texCtx, MotionInfoContexts *motCtx);
+void InitContextsHf(HighBandInfoContexts *highBandCtx);
+
 #endif
 

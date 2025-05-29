@@ -184,19 +184,17 @@ namespace HFM {
 #if CABAC
         BitstreamInit(&bitstreamCabacLl_, 24);
         arienco_start_encoding(&eeCabacLl_, bitstreamCabacLl_.streamBuffer, &(bitstreamCabacLl_.byte_pos));
-        arienco_reset_EC(&eeCabacLl_);
 #endif
 #if CABAC_HF
         BitstreamInit(&bitstreamCabacHf_, 24);
         arienco_start_encoding(&eeCabacHf_, bitstreamCabacHf_.streamBuffer, &(bitstreamCabacHf_.byte_pos));
-        arienco_reset_EC(&eeCabacHf_);
 #endif
         // ctx ini
 #if CABAC
-        InitContextsLl(qp_, &texCtx_, &motCtx_);
+        InitContextsLl(&texCtx_, &motCtx_);
 #endif
 #if CABAC_HF
-        InitContextsHf(qp_, &highBandCtx_);
+        InitContextsHf(&highBandCtx_);
 #endif
     }
 

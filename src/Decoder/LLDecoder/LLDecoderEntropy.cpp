@@ -40,7 +40,7 @@ namespace HFM {
 #if CABAC
         bitstreamCabacLl_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3);
         arideco_start_decoding(&de_, bitstreamCabacLl_.streamBuffer, 0, &bitstreamCabacLl_.read_len);
-        InitContextsLl(subpicSyntaxInfo->subpicLlQpIndex, &texCtx_, &motCtx_);
+        InitContextsLl(&texCtx_, &motCtx_);
 #endif
         bitstreamVlcLl_ = {0};
         bitstreamVlcLl_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3) + subpicSyntaxInfo->subpicLlCabacLength;

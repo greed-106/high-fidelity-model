@@ -36,8 +36,6 @@ struct encoding_environment
     int           Epbuf;
     byte          *Ecodestrm;
     int           *Ecodestrm_len;
-    int           C;
-    int           E;
 
     int           cabac_encoding;
 
