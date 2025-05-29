@@ -237,6 +237,9 @@ namespace HFM {
                                 continue;
                             }
 #endif
+                            if (isChroma_ == LUMA && puSize_== LUMA_PU_4x4 && intraPredMode_ == INTRA_PLANAR) {
+                                continue;
+                            }
 #if !CCLM
                             if (isChroma_ == CHROMA && intraPredMode_ == INTRA_CCLM) {
                                 continue;

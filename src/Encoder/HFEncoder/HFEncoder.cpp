@@ -29,6 +29,7 @@
 * ====================================================================================================================
 */
 #include "HFEncoder.h"
+#include "Tool.h"
 
 namespace HFM {
     HFEncoder::HFEncoder() {
@@ -140,6 +141,16 @@ namespace HFM {
         }
     };
 
+    uint32_t HFEncoder::Distortion() {
+        uint32_t sse = 0;
+        int32_t tmp = 0;
+        for (uint8_t pos = 0; pos < MB_SIZE * MB_SIZE; ++pos) {
+                tmp = mbOri_[pos] - mbRec_[pos];
+                sse += tmp * tmp;
+            }
+        return sse;
+    }
+
     void HFEncoder::HFEncode(Bitstream* bitstreamVlcHf_, EncodingEnvironment* eeCabacHf_, HighBandInfoContexts* highBandCtx_, bool qpDeltaEnable, std::vector<std::vector<int16_t>>& mbDeltaQP, bool hfTransformSkip) {
         hfEncoderEntropy_->Set(bitstreamVlcHf_, eeCabacHf_, highBandCtx_);
 
@@ -186,11 +197,43 @@ namespace HFM {
                         hfMBOriReorder();
                         hfTransITrans_->Set(colorComponent_, 0);
                         hfTransITrans_->ComHFTransITrans(mbOri_, mbHad_);
-                        if (hfTransformSkip) {
-                            bestTransType_ = ((colorComponent_ == Y && SimpleRd(curMbQP, mbOri_) < SimpleRd(curMbQP, mbHad_)) ? HF_NOHAD : HF_HAD);
-                        } else {
+#if FAST_TRANSKIP
+                        if (colorComponent_ == Y && hfTransformSkip) {
+                            bestTransType_ = ((SimpleRd(curMbQP, mbOri_) < SimpleRd(curMbQP, mbHad_)) ? HF_NOHAD : HF_HAD);
+                        } else 
+#endif
+                        {
                             bestTransType_ = HF_HAD;
                         }
+#if !FAST_TRANSKIP
+                        if (colorComponent_ == Y && hfTransformSkip) {
+                            float cost[2] = {0,0};
+                            uint32_t dis=0, rate=0;
+                            for (uint8_t transType = HF_HAD; transType <= HF_NOHAD; transType++) {
+                                ptr = (transType == HF_NOHAD) ? &mbOri_ : &mbHad_;
+                                encoderQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_DEADZONE, HF_TH1, HF_RDOQ_OFFSET, HF_QUANT_DYNAMIC_BIT);
+                                encoderQuant_->Quant(*ptr, mbCoeff_, 0);
+                                hfEncoderEntropy_->GetCabcaState();
+                                int tmpLeftMaxCoeff = hfEncoderEntropy_->bgParams_.leftCoefMax[3* (hfBandIdx_-1)];
+                                hfEncoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, bestTransType_);
+                                hfEncoderEntropy_->HFEntropyCoeffGroup(mbCoeff_, &hfEncoderEntropy_->bgParams_, hfTransformSkip);
+
+                                hfIQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_IQUANT_DYNAMIC_BIT);
+                                hfIQuant_->ComIQuant(mbCoeff_, mbRec_, 0);
+
+                                if (transType == HF_HAD) {
+                                    hfTransITrans_->Set(colorComponent_, 1);
+                                    hfTransITrans_->ComHFTransITrans(mbRec_, mbRec_);
+                                }
+                                dis = Distortion();
+                                rate = hfEncoderEntropy_->bits_;
+                                hfEncoderEntropy_->ResetCabcaState();
+                                hfEncoderEntropy_->bgParams_.leftCoefMax[3 * (hfBandIdx_ - 1)]=tmpLeftMaxCoeff;
+                                cost[transType]=RdCostCal(rate, dis, curMbQP);
+                            }
+                            bestTransType_ = (cost[HF_HAD] <= cost[HF_NOHAD] ? HF_HAD : HF_NOHAD);
+                        }
+#endif
                         ptr = (bestTransType_ == HF_NOHAD) ? &mbOri_ : &mbHad_;
 
                         encoderQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_DEADZONE, HF_TH1, HF_RDOQ_OFFSET, HF_QUANT_DYNAMIC_BIT);

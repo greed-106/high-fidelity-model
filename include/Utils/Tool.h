@@ -37,6 +37,7 @@ namespace HFM {
 #define CCLM 0
 #define DST 0
 #define TRANSKIP 0
+#define FAST_TRANSKIP 0
 #define CABAC 0
 #define CABAC_HF 0
 }

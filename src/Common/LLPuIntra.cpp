@@ -159,7 +159,7 @@ namespace HFM {
         uint8_t index = 0;
         for (uint8_t yPos = 0; yPos < puHeight_; ++yPos) {
             for (uint8_t xPos = 0; xPos < puWidth_; ++xPos) {
-                intraPred[index + xPos] = ((*Nbr_[MB_NBR_LEFT])[yPos] + (*Nbr_[MB_NBR_UP])[xPos] + 1) >> 1;
+                intraPred[index + xPos] = ((*Nbr_[MB_NBR_LEFT])[yPos] + (*Nbr_[MB_NBR_UP])[xPos]+1)>>1;
             }
             index += puWidth_;
         }

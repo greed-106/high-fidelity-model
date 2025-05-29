@@ -49,6 +49,7 @@ namespace HFM {
         void Set(uint32_t hfBandWidth, uint32_t hfBandHeight, SubBandMap& subPic, SubBandMap& subPicRec,
             uint8_t qp, int32_t cbQpOffset, int32_t crQpOffset, int32_t hlQpOffset, int32_t lhQpOffset, int32_t hhQpOffset);
         uint32_t SimpleRd(uint8_t qp, FrameBuffer &mbPix);
+        uint32_t Distortion();
         void HFEncode(Bitstream* bitstreamVlcHf_, EncodingEnvironment* eeCabacHf_, HighBandInfoContexts* highBandCtx_, bool qpDelta, std::vector<std::vector<int16_t>>& mbDeltaQP, bool hfTransformSkip);
         void hfMBOriReorder();
         void hfMBRecReorder(uint8_t bestTransType);

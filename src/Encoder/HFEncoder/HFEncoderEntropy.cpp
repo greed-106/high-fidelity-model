@@ -239,44 +239,77 @@ namespace HFM {
         }
     }
 
-    void HFEncoderEntropy::HFEncPattern0001(int* resSubBlock) {
-        if (resSubBlock[0] == 1 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
-            write_u_v(3, 0, bitstream_);
-        else if (resSubBlock[0] == -1 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
-            write_u_v(3, 1, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == 1 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
-            write_u_v(3, 2, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == -1 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
-            write_u_v(3, 3, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 1 && resSubBlock[3] == 0)
-            write_u_v(3, 4, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == -1 && resSubBlock[3] == 0)
-            write_u_v(3, 5, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 1)
-            write_u_v(3, 6, bitstream_);
-        else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == -1)
-            write_u_v(3, 7, bitstream_);
+    uint32_t HFEncoderEntropy::HFEncPattern0001(int* resSubBlock) {
+        if (eep_->cabac_encoding == 1) {
+            if (resSubBlock[0] == 1 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
+                write_u_v(3, 0, bitstream_);
+            else if (resSubBlock[0] == -1 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
+                write_u_v(3, 1, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == 1 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
+                write_u_v(3, 2, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == -1 && resSubBlock[2] == 0 && resSubBlock[3] == 0)
+                write_u_v(3, 3, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 1 && resSubBlock[3] == 0)
+                write_u_v(3, 4, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == -1 && resSubBlock[3] == 0)
+                write_u_v(3, 5, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == 1)
+                write_u_v(3, 6, bitstream_);
+            else if (resSubBlock[0] == 0 && resSubBlock[1] == 0 && resSubBlock[2] == 0 && resSubBlock[3] == -1)
+                write_u_v(3, 7, bitstream_);
+            return 3;
+        } else {
+            return 3;
+        }
     }
 
     void HFEncoderEntropy::Set(Bitstream* bitstreamVlcHf, EncodingEnvironment* eeCabacHf, HighBandInfoContexts* highBandCtx) {
         bitstream_ = bitstreamVlcHf;
         eep_ = eeCabacHf;
         highBandCtx_ = highBandCtx;
+        eep_->cabac_encoding = 1;
     }
 
-    void HFEncoderEntropy::HFEntropyFlag(BiContextTypePtr pBinCtx, int value) {
+    void HFEncoderEntropy::GetCabcaState() {
+        eeState_ = *eep_;
 #if CABAC_HF
+        cabacLenState= *eep_->Ecodestrm_len;
+#endif
+        highBandCtxState_ = *highBandCtx_;
+        eep_->cabac_encoding = 0;
+        bits_ = 0;
+    }
+
+    void HFEncoderEntropy::ResetCabcaState() {
+        *eep_ = eeState_;
+#if CABAC_HF
+        *eep_->Ecodestrm_len = cabacLenState;
+#endif
+        *highBandCtx_ = highBandCtxState_;
+        eep_->cabac_encoding = 1;
+    }
+
+    uint32_t HFEncoderEntropy::HFEntropyFlag(BiContextTypePtr pBinCtx, int value) {
+#if CABAC_HF
+        int curr_len = arienco_bits_written(eep_);
         biari_encode_symbol(eep_, value, pBinCtx);
+        int no_bits = arienco_bits_written(eep_) - curr_len;
+        return no_bits;
 #else
-        write_u_v(1, value, bitstream_);
+        if (eep_->cabac_encoding == 1) {
+            write_u_v(1, value, bitstream_);
+            return 1;
+        } else {
+            return 1;
+        }
 #endif
     }
 
-    void HFEncoderEntropy::HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams) {
+    uint32_t HFEncoderEntropy::HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams) {
         int numCoeffInBlock = 16;
         int* coeff = residual + blockIdx * numCoeffInBlock;
         unsigned char subBlocksNotAllZero[4];
-
+        int no_bits = 0;
         for (int subBlokIndex = 0; subBlokIndex < 4; subBlokIndex++) {
             if (IsAllZeroarray(coeff + subBlokIndex * 4, 4))
                 subBlocksNotAllZero[subBlokIndex] = 0;
@@ -285,7 +318,7 @@ namespace HFM {
         }
 
         if (subBlocksNotAllZero[0] && subBlocksNotAllZero[1] && subBlocksNotAllZero[2] && subBlocksNotAllZero[3]) {  //1111subblocks
-            HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_MODE_band0 + blockParams->bandIdx]), 1);
+            no_bits+=HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_MODE_band0 + blockParams->bandIdx]), 1);
             int costVlc0 = 0;
             int costVlc1 = 0;
             int(*bitsVlc0)(int) = NULL;
@@ -315,50 +348,75 @@ namespace HFM {
                 costVlc1 += bitsVlc1(coeff[i]);
             }
             if (costVlc0 < costVlc1) {
-                HFEntropyFlag(&(highBandCtx_->zFlag[TABLE_IDX_4x4_band0 + blockParams->bandIdx]), 0);
-                for (int i = 0; i < numCoeffInBlock; i++)
-                    (this->*writeVlc0)(coeff[i]);
+                no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[TABLE_IDX_4x4_band0 + blockParams->bandIdx]), 0);
+                if (eep_->cabac_encoding == 1) {
+                    for (int i = 0; i < numCoeffInBlock; i++)
+                        (this->*writeVlc0)(coeff[i]);
+                } else {
+                    no_bits += costVlc0;
+                }
             } else {
-                HFEntropyFlag(&(highBandCtx_->zFlag[TABLE_IDX_4x4_band0 + blockParams->bandIdx]), 1);
-                for (int i = 0; i < numCoeffInBlock; i++)
-                    (this->*writeVlc1)(coeff[i]);
+                no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[TABLE_IDX_4x4_band0 + blockParams->bandIdx]), 1);
+                if (eep_->cabac_encoding == 1) {
+                    for (int i = 0; i < numCoeffInBlock; i++)
+                        (this->*writeVlc1)(coeff[i]);
+                } else {
+                    no_bits += costVlc1;
+                }
             }
+
         } else {
-            HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_MODE_band0 + blockParams->bandIdx]), 0);
+            no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_MODE_band0 + blockParams->bandIdx]), 0);
             for (int subBlokIndex = 0; subBlokIndex < 4; subBlokIndex++) {
                 if (HF_NOHAD == blockParams->transformType)
-                    HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_2x2_band0 + blockParams->bandIdx]), subBlocksNotAllZero[subBlokIndex]);
+                    no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_2x2_band0 + blockParams->bandIdx]), subBlocksNotAllZero[subBlokIndex]);
                 else
-                    HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_ACDC_1_band0_Y + 9 * subBlokIndex + blockParams->bandIdx * 3 + blockParams->colorComponent]), subBlocksNotAllZero[subBlokIndex]);
+                    no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_ACDC_1_band0_Y + 9 * subBlokIndex + blockParams->bandIdx * 3 + blockParams->colorComponent]), subBlocksNotAllZero[subBlokIndex]);
                 
                 if (subBlocksNotAllZero[subBlokIndex] == 1) {
                     int* resSubBlock = coeff + subBlokIndex * 4;
                     if (abs(resSubBlock[0]) + abs(resSubBlock[1]) + abs(resSubBlock[2]) + abs(resSubBlock[3]) == 1) { //0001 pattern
-                        HFEntropyFlag(&(highBandCtx_->zFlag[PATTERN0001_MODEL_band0 + blockParams->bandIdx]), 1);
-                        HFEncPattern0001(resSubBlock);
+                        no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[PATTERN0001_MODEL_band0 + blockParams->bandIdx]), 1);
+                        no_bits += HFEncPattern0001(resSubBlock);
                     } else {
-                        HFEntropyFlag(&(highBandCtx_->zFlag[PATTERN0001_MODEL_band0 + blockParams->bandIdx]), 0);
+                        no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[PATTERN0001_MODEL_band0 + blockParams->bandIdx]), 0);
                         int maxCoeffGt1 = 0;
                         for (int coefIdx = 0; coefIdx < 4; coefIdx++) {
                             if (abs(resSubBlock[coefIdx]) > 1)
                                 maxCoeffGt1 = 1;
                         }
-                        HFEntropyFlag(&(highBandCtx_->zFlag[MAX_COEF_GRT1_band0 + blockParams->bandIdx]), maxCoeffGt1);
+                        no_bits += HFEntropyFlag(&(highBandCtx_->zFlag[MAX_COEF_GRT1_band0 + blockParams->bandIdx]), maxCoeffGt1);
                         if (maxCoeffGt1) {
-                            for (int coefIdx = 0; coefIdx < 4; coefIdx++)
-                                WriteVLCTable1(resSubBlock[coefIdx]);
+                            for (int coefIdx = 0; coefIdx < 4; coefIdx++) {
+                                if (eep_->cabac_encoding == 1) {
+                                    WriteVLCTable1(resSubBlock[coefIdx]);
+                                } else {
+                                    no_bits += VLCTable1(resSubBlock[coefIdx]);
+                                }
+                            }
                         } else {
                             for (int coefIdx = 0; coefIdx < 4; coefIdx++) {
                                 int absValue = abs(resSubBlock[coefIdx]);
-                                write_u_v(1, absValue, bitstream_);
-                                if(absValue)
+                                if (eep_->cabac_encoding == 1) {
+                                    write_u_v(1, absValue, bitstream_);
+                                } else {
+                                    no_bits++;
+                                }
+                                if (absValue) {
+                                    if (eep_->cabac_encoding == 1) {
                                     write_u_v(1, resSubBlock[coefIdx] < 0, bitstream_);
+                                    } else {
+                                        no_bits++;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        return no_bits;
     }
 
     void HFEncoderEntropy::HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t transformType) {
@@ -384,51 +442,51 @@ namespace HFM {
         } else
             memcpy(res, &residual[0], residual.size() * sizeof(int32_t));
 
-        unsigned char blocksNotAllZero[4] = {0};
-        for (int i = 0; i < bgParams->curBlockSize; i++)
-            blocksNotAllZero[i] = !IsAllZeroarray(res + blockPixels * i, blockPixels);
+            unsigned char blocksNotAllZero[4] = {0};
+            for (int i = 0; i < bgParams->curBlockSize; i++)
+                blocksNotAllZero[i] = !IsAllZeroarray(res + blockPixels * i, blockPixels);
 
-        int startBlock = 0;
-        int endBlock = startBlock + bgParams->curBlockSize;
-        int groupNotAllZero = 0;
-        for (int blockIdx = startBlock; blockIdx < endBlock; blockIdx++) {
-            groupNotAllZero |= blocksNotAllZero[blockIdx];
-        }
-        HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_BLOCK_MODEL_8x8nnz_band0_Y + bgParams->bandIdx * 3 + bgParams->colorComponent]), groupNotAllZero);
-        
-        if (groupNotAllZero) {
-            int groupAllNotzero = 1;
+            int startBlock = 0;
+            int endBlock = startBlock + bgParams->curBlockSize;
+            int groupNotAllZero = 0;
             for (int blockIdx = startBlock; blockIdx < endBlock; blockIdx++) {
-                groupAllNotzero &= blocksNotAllZero[blockIdx];
+                groupNotAllZero |= blocksNotAllZero[blockIdx];
             }
-            HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_BLOCK_MODEL_8x8_allone_band0_Y + bgParams->bandIdx * 3 + bgParams->colorComponent]), groupAllNotzero);
-            if (Y == bgParams->colorComponent && hfTransformSkipEnable)
-                HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_TS_band0 + bgParams->bandIdx]), bgParams->transformType==HF_NOHAD);
+            bits_ += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_BLOCK_MODEL_8x8nnz_band0_Y + bgParams->bandIdx * 3 + bgParams->colorComponent]), groupNotAllZero);
+            if (groupNotAllZero) {
+                    int groupAllNotzero = 1;
+                    for (int blockIdx = startBlock; blockIdx < endBlock; blockIdx++) {
+                        groupAllNotzero &= blocksNotAllZero[blockIdx];
+                    }
 
-            if (!groupAllNotzero) {
-                int countZeroBlocks = 0;
-                int countOneBlocks = 0;
-                for (int blockIdx = startBlock; blockIdx < endBlock; blockIdx++) {
-                    if(countZeroBlocks != endBlock - 1 && countOneBlocks != endBlock - 1)
-                        HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_MODEL_4x4_band0 + bgParams->bandIdx]), blocksNotAllZero[blockIdx]);
-                    countZeroBlocks += (!blocksNotAllZero[blockIdx]);
-                    countOneBlocks += blocksNotAllZero[blockIdx];
+                    bits_ += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_BLOCK_MODEL_8x8_allone_band0_Y + bgParams->bandIdx * 3 + bgParams->colorComponent]), groupAllNotzero);
+
+                    if (Y == bgParams->colorComponent && hfTransformSkipEnable)
+                        bits_ += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_ROW_MODEL_TS_band0 + bgParams->bandIdx]), bgParams->transformType == HF_NOHAD);
+                    if (!groupAllNotzero) {
+                        int countZeroBlocks = 0;
+                        int countOneBlocks = 0;
+                        for (int blockIdx = startBlock; blockIdx < endBlock; blockIdx++) {
+                            if (countZeroBlocks != endBlock - 1 && countOneBlocks != endBlock - 1)
+                                bits_ += HFEntropyFlag(&(highBandCtx_->zFlag[ZFLAG_MODEL_4x4_band0 + bgParams->bandIdx]), blocksNotAllZero[blockIdx]);
+                            countZeroBlocks += (!blocksNotAllZero[blockIdx]);
+                            countOneBlocks += blocksNotAllZero[blockIdx];
+                        }
+                    }
                 }
-            }
-        }
-        EncDecBlockParams blockParams;
-        blockParams.bandIdx = bgParams->bandIdx;
-        blockParams.colorComponent = bgParams->colorComponent;
-        blockParams.leftCoefMax = bgParams->leftCoefMax;
-        blockParams.transformType = bgParams->transformType;
-        while (startBlock < endBlock) {
-            if (blocksNotAllZero[startBlock] == 1) {
-                HFEntropyCoeffBlock(startBlock, res, &blockParams);
-                blockParams.leftCoefMax[3 * bgParams->bandIdx + bgParams->colorComponent] = BlockMaxAbsCoef(res + startBlock * 16); //block has 16 coeffs
-            } else
-                blockParams.leftCoefMax[3 * bgParams->bandIdx + bgParams->colorComponent] = 0;
-            startBlock++;
-        }
+                EncDecBlockParams blockParams;
+                blockParams.bandIdx = bgParams->bandIdx;
+                blockParams.colorComponent = bgParams->colorComponent;
+                blockParams.leftCoefMax = bgParams->leftCoefMax;
+                blockParams.transformType = bgParams->transformType;
+                while (startBlock < endBlock) {
+                    if (blocksNotAllZero[startBlock] == 1) {
+                        bits_ += HFEntropyCoeffBlock(startBlock, res, &blockParams);
+                        blockParams.leftCoefMax[3 * bgParams->bandIdx + bgParams->colorComponent] = BlockMaxAbsCoef(res + startBlock * 16); //block has 16 coeffs
+                    } else
+                        blockParams.leftCoefMax[3 * bgParams->bandIdx + bgParams->colorComponent] = 0;
+                    startBlock++;
+                }
     }
 
     void HFEncoderEntropy::HFEntropyDeltaQp(int isLeftBoundaryMb, int subpicLumaQp, int& mbQp, int& qp_delta) {

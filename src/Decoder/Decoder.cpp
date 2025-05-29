@@ -332,7 +332,7 @@ namespace HFM {
         }
     }
 
-    void Decoder::Decode(uint32_t currFrame) {
+    void Decoder::Decode(uint32_t currFrame, long long& totalBit, long long& cabacBit) {
         auto frameType = static_cast<FrameType>(currFrame % intraPeriod_);
         bool needRef = frameType == FRAME_I && intraPeriod_ > 1;
         auto llDecoder = std::make_shared<LLDecoder>();
@@ -367,6 +367,8 @@ namespace HFM {
             // TODO: stream update
             bitstream_.streamBuffer += subpicSyntaxInfo_[subPicIndex].subpicLength;
             curBitstreamPos_ += subpicSyntaxInfo_[subPicIndex].subpicLength;
+            totalBit += subpicSyntaxInfo_[subPicIndex].subpicLength;
+            cabacBit += subpicSyntaxInfo_[subPicIndex].subpicLlCabacLength + subpicSyntaxInfo_[subPicIndex].subpicHfCabacLength;
         }
         bitstream_.streamBuffer += bitstream_.frame_bitoffset >> 3;
         bitstream_.frame_bitoffset = 0;

@@ -55,7 +55,7 @@ namespace HFM {
         void ParseSeqHeaderInfo(Bitstream* bitstream);
         void ParsePicHeaderInfo(Bitstream* bitstream);
         void RenderingInformation(Bitstream* bitstream);
-        void Decode(uint32_t currFrame);
+        void Decode(uint32_t currFrame, long long& totalBit, long long& cabacBit);
         void SetSubPic(std::shared_ptr<SubPicDec> subPicDec);
         Bitstream bitstream_;
         int64_t bitstreamLength_;

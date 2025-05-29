@@ -102,14 +102,16 @@ int main(int argc, const char** argv)
     auto subPic = std::make_shared<SubPicDec>(pixelFormat, headInfo.width, headInfo.height,
                                               headInfo.subPicWidth, headInfo.subPicHeight);
     auto decoder = std::make_shared<Decoder>(headInfo.bitDepth, args.decFile, args.decLLFile, args.bitstream, headInfo.frameCount);
+    long long totalBit=0, cabacBit=0;
     decoder->SetSubPic(subPic);
     for (int frameIdx = 0; decoder->curBitstreamPos_ < decoder->bitstreamLength_; ++frameIdx) {
         LOGI("decode frame %d\n", frameIdx);
         std::string frameDesc{"frame: " + std::to_string(frameIdx)};
         timer.Start(frameDesc);
         decoder->ParseSeqPicHeaderInfo(frameIdx, &decoder->bitstream_);
-        decoder->Decode(frameIdx);
+        decoder->Decode(frameIdx, totalBit, cabacBit);
         timer.End(frameDesc);
     }
+    LOGI("total bits %ld cabac bits %ld\n", totalBit, cabacBit);
     return EXIT_CODE_SUCCESS;
 }
