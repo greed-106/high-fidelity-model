@@ -68,7 +68,7 @@ namespace HFM {
         bitstreamCabacHf_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3) \
             + subpicSyntaxInfo->subpicLlCabacLength + subpicSyntaxInfo->subpicLlVlcLength;
         arideco_start_decoding(&de_, bitstreamCabacHf_.streamBuffer, 0, &bitstreamCabacHf_.read_len);
-        InitContextsHf(0, &highBandCtx_);
+        InitContextsHf(&highBandCtx_);
 #endif
         bitstreamVlcHf_ = {0};
         bitstreamVlcHf_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3) + subpicSyntaxInfo->subpicLlCabacLength \

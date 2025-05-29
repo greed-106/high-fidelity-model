@@ -50,10 +50,8 @@
 //extern void set_pic_bin_count  (VideoParameters *p_Vid, EncodingEnvironmentPtr eep);
 //
 extern void arienco_start_encoding(EncodingEnvironmentPtr eep, unsigned char *code_buffer, int *code_len);
-extern void arienco_reset_EC      (EncodingEnvironmentPtr eep);
 extern void arienco_done_encoding(EncodingEnvironmentPtr eep);
 extern void biari_encode_symbol(EncodingEnvironmentPtr eep, int symbol, BiContextTypePtr bi_ct);
-extern void biari_encode_symbol_eq_prob(EncodingEnvironmentPtr eep, int symbol);
 extern void biari_encode_symbol_final(EncodingEnvironmentPtr eep, int symbol);
 
 /*!
@@ -64,7 +62,7 @@ extern void biari_encode_symbol_final(EncodingEnvironmentPtr eep, int symbol);
 */
 static inline int arienco_bits_written(EncodingEnvironmentPtr eep)
 {
-  return (((*eep->Ecodestrm_len) + eep->Epbuf + 1) << 3) + (eep->Echunks_outstanding * BITS_TO_LOAD) + BITS_TO_LOAD - eep->Ebits_to_go;
+  return (((*eep->Ecodestrm_len) + eep->Epbuf + 1) << 3) + (eep->Echunks_outstanding * 8) + BITS_TO_LOAD - eep->Ebits_to_go;
 }
 
 #endif  // BIARIENCOD_H

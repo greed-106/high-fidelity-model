@@ -28,7 +28,7 @@ typedef struct
 {
     unsigned int    Drange;
     unsigned int    Dvalue;
-    int             DbitsLeft;
+    int             DbitsNeeded;
     byte            *Dcodestrm;
     int             *Dcodestrm_len;
 } DecodingEnvironment;
