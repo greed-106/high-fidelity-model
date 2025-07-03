@@ -28,6 +28,7 @@
 
 * ====================================================================================================================
 */
+#include <cassert>
 #include "LLDecoderEntropy.h"
 #include "BasicTypes.h"
 #include "Utils.h"
@@ -120,5 +121,10 @@ namespace HFM {
                 dec_readCoeff4x8_CABAC(&bitstreamVlcLl_, &de_, &texCtx_, &residual[0], component, mbEntropyInfo_.PredmodeChroma);
             }
         }
+    }
+
+    void LLDecoderEntropy::LLEntropyDone()
+    {
+        assert(biari_decode_final(&de_) == 1);
     }
 }

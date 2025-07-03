@@ -29,6 +29,7 @@
 * ====================================================================================================================
 */
 #include <memory>
+#include <cassert>
 #include "LLDecoder.h"
 
 namespace HFM {
@@ -168,6 +169,7 @@ namespace HFM {
                 }
             }
         }
+        llDecoderEntropy->LLEntropyDone();
     }
 
 }

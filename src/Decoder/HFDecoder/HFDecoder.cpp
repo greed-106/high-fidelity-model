@@ -118,6 +118,6 @@ namespace HFM {
                 }
             }
         }
-
+        hfDecoderEntropy_->HFEntropyDone();
     }
 }

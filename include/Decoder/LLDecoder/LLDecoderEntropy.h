@@ -48,6 +48,7 @@ namespace HFM {
         ~LLDecoderEntropy();
         void LLEntropyCoeff(int component, std::vector<int32_t>& residual);
         void LLEntropyMbInfo(uint32_t frameType, uint32_t qpDeltaEnable);
+        void LLEntropyDone();
         MbSyntaxInfo mbEntropyInfo_;
 
     private:
