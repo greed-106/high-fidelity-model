@@ -22,15 +22,31 @@
 #include "context_ini.h"
 #include "vlc.h"
 
+#define LBAC_OPT  0
+
 typedef int32_t pel;
 
 typedef struct
 {
+    byte           *Dcodestrm;
+    int            *Dcodestrm_len;
+    int             DbitsNeeded;
+#if LBAC_OPT
     unsigned int    Drange;
     unsigned int    Dvalue;
-    int             DbitsNeeded;
-    byte            *Dcodestrm;
-    int             *Dcodestrm_len;
+#else
+    unsigned char   value_s_bound;
+    unsigned char   is_value_bound;
+    unsigned int    max_value_s;
+    unsigned char   is_value_domain; // is value in R domain 1 is R domain 0 is LG domain
+
+    unsigned int    t1;
+    unsigned char   s1;
+    unsigned int    value_t;
+    unsigned char   value_s;
+
+    unsigned int    Dbuffer;
+#endif
 } DecodingEnvironment;
 
 typedef DecodingEnvironment* DecodingEnvironmentPtr;
