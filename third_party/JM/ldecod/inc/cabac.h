@@ -22,7 +22,7 @@
 #include "context_ini.h"
 #include "vlc.h"
 
-#define LBAC_OPT  0
+#define LBAC_OPT  1
 
 typedef int32_t pel;
 
@@ -30,7 +30,9 @@ typedef struct
 {
     byte           *Dcodestrm;
     int            *Dcodestrm_len;
-    int             DbitsNeeded;
+    uint32_t        Dbuffer;
+    unsigned int    Dremained;
+
 #if LBAC_OPT
     unsigned int    Drange;
     unsigned int    Dvalue;
@@ -44,8 +46,6 @@ typedef struct
     unsigned char   s1;
     unsigned int    value_t;
     unsigned char   value_s;
-
-    unsigned int    Dbuffer;
 #endif
 } DecodingEnvironment;
 
