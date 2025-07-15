@@ -62,11 +62,10 @@ namespace HFM {
         ~HFDecoderEntropy();
         void Set(Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo);
         int HFEntropyFlag(BiContextTypePtr pBinCtx);
-        void HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent);
+        void HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t componentShiftX);
         void HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams);
         void HFEntropyCoeffGroup(uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
         void HFEntropyDecode(uint32_t qpDeltaEnable, uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
-        void HFEntropyDone();
         inline int ReadVLCTable0();
         inline int ReadVLCTable1();
         inline int ReadVLCTable2();

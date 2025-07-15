@@ -234,7 +234,7 @@ void  writeUVLC2buffer(SyntaxElement *se, Bitstream *currStream)
 
 void BitstreamInit(Bitstream *bitstream, int logMemSize)
 {
-    int max_bs_size = 1 << logMemSize;
+    long long max_bs_size = (long long) 1 << logMemSize;
     if ((bitstream->streamBuffer = (byte*)malloc(max_bs_size)) == NULL) {
         printf("mem allocation error for bitstream\n");
         exit(-1);
@@ -276,11 +276,9 @@ void rendering_information(Bitstream *bitstream)
     write_u_v(1, cicp_info_present_flag, bitstream);
     int mdcv_info_present_flag = 0;
     write_u_v(1, mdcv_info_present_flag, bitstream);
-    int clli_info_present_flag = 0;
-    write_u_v(1, clli_info_present_flag, bitstream);
     int dm_present_flag = 0;
     write_u_v(1, dm_present_flag, bitstream);
-    write_u_v(4, 0, bitstream); //reserved bits
+    write_u_v(5, 0, bitstream); //reserved bits
 
     if (cicp_info_present_flag) {
         int colour_primaries = 0;
@@ -289,11 +287,9 @@ void rendering_information(Bitstream *bitstream)
         write_u_v(8, transfer_characteristics, bitstream);
         int matrix_coefficients = 0;
         write_u_v(8, matrix_coefficients, bitstream);
-        int image_full_range_flag = 0;
-        write_u_v(1, image_full_range_flag, bitstream);
-        int chroma420_sample_loc_type = 0;
-        write_u_v(3, chroma420_sample_loc_type, bitstream);
-        write_u_v(4, 0, bitstream); //reserved bits
+        int video_full_range_flag = 0;
+        write_u_v(1, video_full_range_flag, bitstream);
+        write_u_v(7, 0, bitstream); //reserved bits
     }
     if (mdcv_info_present_flag) {
         int mastering_display_colour_primaries_x[3] = { 0 };
@@ -307,11 +303,9 @@ void rendering_information(Bitstream *bitstream)
         int mastering_display_white_point_chromaticity_y = 0;
         write_u_v(16, mastering_display_white_point_chromaticity_y, bitstream);
         int mastering_display_maximum_luminance = 0;
-        write_u_v(32, mastering_display_maximum_luminance, bitstream);
+        write_u_v(16, mastering_display_maximum_luminance, bitstream);
         int mastering_display_minimum_luminance = 0;
-        write_u_v(32, mastering_display_minimum_luminance, bitstream);
-    }
-    if (clli_info_present_flag) {
+        write_u_v(16, mastering_display_minimum_luminance, bitstream);
         int maximum_content_light_level = 0;
         write_u_v(16, maximum_content_light_level, bitstream);
         int maximum_frame_average_light_level = 0;
@@ -336,22 +330,18 @@ void enc_pic_header(int frameType, SeqPicHeaderInfo *seqPicHeaderInfo, Bitstream
     int pic_size = 0;
     write_u_v(32, pic_size, bitstream);
     write_u_v(1, frameType, bitstream);
+    write_u_v(1, seqPicHeaderInfo->alphaFlag, bitstream);
+    write_u_v(1, seqPicHeaderInfo->alpha16bitFlag, bitstream);
+    write_u_v(4, seqPicHeaderInfo->alphaMapCodeMode, bitstream);
     write_u_v(1, seqPicHeaderInfo->qpDeltaEnable, bitstream);
     write_u_v(1, seqPicHeaderInfo->hfTransformSkip, bitstream);
+    write_u_v(1, seqPicHeaderInfo->cclmEnable, bitstream);
+    write_u_v(1, 0, bitstream); //pic_output_flag
     write_u_v(21, 0, bitstream);   //reserved bits
 
     //SUB_PIC_LENGTH
-    //ctx->p_subpic_info = ctx->bs.cur + 4 - (ctx->bs.leftbits >> 3);  //point to sub pic info array, each 17 bytes
     int subPicNums = (seqPicHeaderInfo->width + seqPicHeaderInfo->subPicWidth -1)/seqPicHeaderInfo->subPicWidth * \
         ((seqPicHeaderInfo->height + seqPicHeaderInfo->subPicHeight - 1) / seqPicHeaderInfo->subPicHeight);
-    for (int subPic_idx = 0; subPic_idx < subPicNums; subPic_idx++) {
-        write_u_v(31, 0, bitstream); //QP info
-        write_u_v(9, 0, bitstream); //reserved bits
-        write_u_v(24, 0, bitstream); //subpic len
-        write_u_v(24, 0, bitstream); //subpic ll cabac len
-        write_u_v(24, 0, bitstream); //subpic ll vlc len
-        write_u_v(24, 0, bitstream); //subpic hf cabac len
-    }
 
     //constraint on number of subpic number
     if (seqPicHeaderInfo->width > 4096) {
@@ -380,14 +370,14 @@ void enc_seq_header(SeqPicHeaderInfo *seqPicHeaderInfo, Bitstream *bitstream)
 
     write_u_v(8, seqPicHeaderInfo->profileIdc, bitstream);
     write_u_v(8, seqPicHeaderInfo->levelIdc, bitstream);
-    write_u_v(2, seqPicHeaderInfo->frameCount - 1, bitstream);
+    write_u_v(8, seqPicHeaderInfo->frameCount - 1, bitstream);
     write_u_v(8, seqPicHeaderInfo->frameRate, bitstream);
 
     write_u_v(16, seqPicHeaderInfo->width, bitstream);
     write_u_v(16, seqPicHeaderInfo->height, bitstream);
 
-    write_u_v(3, (seqPicHeaderInfo->subPicWidth >> 7) - 2, bitstream);
-    write_u_v(6, (seqPicHeaderInfo->subPicHeight >> 7) - 2, bitstream);
+    write_u_v(8, ((seqPicHeaderInfo->subPicWidth >> 7) - 2), bitstream);
+    write_u_v(8, (seqPicHeaderInfo->subPicHeight >> 7) - 1, bitstream);
     if (seqPicHeaderInfo->subPicWidth > 1024 || seqPicHeaderInfo->subPicWidth < 256 || seqPicHeaderInfo->subPicWidth % 128 != 0) {
         printf("sub pic width shall be in range of 256 to 1024 and multiple of 128\n");
         exit(-1);
@@ -397,10 +387,18 @@ void enc_seq_header(SeqPicHeaderInfo *seqPicHeaderInfo, Bitstream *bitstream)
         exit(-1);
     }
     write_u_v(4, seqPicHeaderInfo->bitDepth -8, bitstream);
-    write_u_v(2, seqPicHeaderInfo->pixelFormat, bitstream);
+    write_u_v(4, seqPicHeaderInfo->pixelFormat, bitstream);
+    int interlace_mode = 0;
+    write_u_v(2, interlace_mode, bitstream);
+    int yuv444_by_yuv422_flag = 0;
+    write_u_v(1, yuv444_by_yuv422_flag, bitstream);
+    //reserved bits
+    write_u_v(5, 0, bitstream);
+    write_u_v(32, 0, bitstream);
+    write_u_v(32, 0, bitstream);
+
     //rendering info
     rendering_information(bitstream);
-    write_u_v(23, 0, bitstream); //reserved bits
 
 }
 

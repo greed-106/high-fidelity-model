@@ -66,21 +66,22 @@ namespace HFM {
         hfDecoderEntropy_->Set(bitstream, subpicSyntaxInfo);
         int maxWidthMb = (hfBandWidth_ + MB_SIZE - 1) / MB_SIZE;
         int maxHeightMb = (hfBandHeight_ + MB_SIZE - 1) / MB_SIZE;
+        pixelFormat_ = (PixelFormat)seqPicHeaderInfo->pixelFormat;
 
         FrameBuffer* ptr;
         uint8_t transType;
-        uint8_t refQP[N_SUB_BANDS][N_COLOR_COMP] = {0};
-        uint8_t mbQP[N_SUB_BANDS][N_COLOR_COMP] = {0};
+        uint8_t refQP[N_SUB_BANDS][N_YUV_COMP] = {0};
+        uint8_t mbQP[N_SUB_BANDS][N_YUV_COMP] = {0};
         for (uint32_t mbY = 0; mbY < maxHeightMb; mbY++) {
             for (uint32_t mbX = 0; mbX < maxWidthMb; mbX++) {
                 for (hfBandIdx_ = HL; hfBandIdx_ < N_SUB_BANDS; hfBandIdx_++) {
-                    for (colorComponent_ = Y; colorComponent_ < N_COLOR_COMP; ++colorComponent_) {
-                        componentShiftX_ = (colorComponent_ == Y) ? 0 : 1;
+                    for (colorComponent_ = Y; colorComponent_ < N_YUV_COMP; ++colorComponent_) {
+                        componentShiftX_ = (colorComponent_ != Y && pixelFormat_ == PixelFormat::YUV422P10LE) ? 1 : 0;
                         lineWidth_ = hfBandWidth_ >> componentShiftX_;
                         pixelIndex_ = mbY * MB_SIZE  * lineWidth_ + mbX * (MB_SIZE >> componentShiftX_);
 
                         std::fill(mbCoeff_.begin(), mbCoeff_.end(), 0);
-                        hfDecoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_);
+                        hfDecoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, componentShiftX_);
                         hfDecoderEntropy_->HFEntropyDecode(seqPicHeaderInfo->qpDeltaEnable, seqPicHeaderInfo->hfTransformSkip, mbCoeff_);
 
                         //IQIT
@@ -91,10 +92,10 @@ namespace HFM {
                                 for (int bandidx = HL; bandidx <= HH; bandidx++) {
                                     for (int comIdx = Y; comIdx <= V; comIdx++) {
                                         if (mbX == 0) {
-                                            Clip<uint8_t, uint8_t>(qp_[bandidx][comIdx] + qpMbDelta, mbQP[bandidx][comIdx], 0, 39);
+                                            Clip<int8_t, uint8_t>(qp_[bandidx][comIdx] + qpMbDelta, mbQP[bandidx][comIdx], 0, 39);
                                             refQP[bandidx][comIdx] = mbQP[bandidx][comIdx];
                                         } else {
-                                            Clip<uint8_t, uint8_t>(qpMbDelta + refQP[bandidx][comIdx], mbQP[bandidx][comIdx], 0, 39);
+                                            Clip<int8_t, uint8_t>(qpMbDelta + refQP[bandidx][comIdx], mbQP[bandidx][comIdx], 0, 39);
                                             refQP[bandidx][comIdx] = mbQP[bandidx][comIdx];
                                         }
                                     }
@@ -109,7 +110,7 @@ namespace HFM {
                         hfIQuant_->ComIQuant(mbCoeff_, mbDec_, 0);
                         transType = hfDecoderEntropy_->bgParams_.transformType;
                         if (transType == HF_HAD) {
-                            hfTransITrans_->Set(colorComponent_, 1);
+                            hfTransITrans_->Set(componentShiftX_, 1);
                             hfTransITrans_->ComHFTransITrans(mbDec_, mbDec_);
                         }
                         hfMBDecReorder();
@@ -118,6 +119,6 @@ namespace HFM {
                 }
             }
         }
-        hfDecoderEntropy_->HFEntropyDone();
+
     }
 }

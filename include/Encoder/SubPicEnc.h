@@ -44,17 +44,19 @@ namespace HFM {
         SubPicEnc(PixelFormat pixelFormat, uint32_t picWidth, uint32_t picHeight, uint32_t subPicWidth, uint32_t subPicHeight);
         ~SubPicEnc() = default;
         void DWT(SubPicInfoMap& subPicInfo);
+        void GetAlpha(SubPicInfoMap& subPicInfo);
         void SetDWTSubPicPath(std::string dwtSubPicPath);
         void SetLLReference(SubPicInfoMap& subPicLLInfoRef);
         void WriteDWTSubPic(SubPicInfoMap& subPicInfo, const std::string& path);
         SubBandMap subBands_;
         SubBandMap subBandsRec_;
         SubBandMap subBandsRef_;
+        SharedBufferStorage alphaBuffer_;
         SharedFrameBuffer dwtRowBuffer_;
         SharedFrameBuffer dwtTransTmpBuffer_;
     private:
         std::string dwtSubPicPath_;
-        uint32_t subBandPixels_[N_COLOR_COMP]{};
+        uint32_t subBandPixels_[N_YUV_COMP]{};
     };
 }
 

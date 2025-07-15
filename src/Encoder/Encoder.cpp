@@ -70,21 +70,20 @@ namespace HFM {
         }
     }
 
-    void Encoder::SetInput(std::shared_ptr<SubPicEnc> subPic, int32_t qp, int32_t cbQpOffset, int32_t crQpOffset, int32_t hlQpOffset, 
-        int32_t lhQpOffset, int32_t hhQpOffset, bool qpDeltaEnable, bool hfTransformSkip) {
+    void Encoder::SetInput(PixelFormat pixelFormat, std::shared_ptr<SubPicEnc> subPic, AlphaInput alphaInput, QPGroup qpGroup, bool qpDeltaEnable, bool hfTransformSkip, bool cclmEnable) {
         subPic_ = std::move(subPic);
-        cbQpOffset_ = cbQpOffset;
-        crQpOffset_ = crQpOffset;
-        hlQpOffset_ = hlQpOffset;
-        lhQpOffset_ = lhQpOffset;
-        hhQpOffset_ = hhQpOffset;
+        pixelFormat_ = pixelFormat;
+        inputAlphaFlag_ = alphaInput.inputAlphaFlag;
+        inputAlpha16bitFlag_ = alphaInput.inputAlpha16bitFlag;
+        qpGroup_ = qpGroup;
         qpDeltaEnable_ = qpDeltaEnable;
         hfTransformSkip_ = hfTransformSkip;
-        Clip<int32_t, uint8_t>(qp, qp_, 0, 39);
+        cclmEnable_ = cclmEnable;
+        Clip<int32_t, uint8_t>(qpGroup_.qp, baseQp_, 0, 39);
         if (!recFile_.empty() && !recPicBuffer_) {
             subPicInfoRec_ = subPic_->subPicInfo_;
-            uint32_t picPixels[N_COLOR_COMP] {};
-            for (auto color : COLORS) {
+            uint32_t picPixels[N_YUV_COMP] {};
+            for (auto color : YUVS) {
                 auto comp = color == Y ? LUMA : CHROMA;
                 recPicSize_[comp] = subPic_->GetPicSizeRaw(color);
                 // rec image size is W x H, stored in W x H buffer
@@ -99,12 +98,12 @@ namespace HFM {
             }
             if (!recPicBuffer_) {
                 recPicBuffer_ = std::make_shared<BufferStorage>(picPixels[Y] + picPixels[U] + picPixels[V], 0);
-                PelStorage* picHeaderPtr[N_COLOR_COMP] {};
+                PelStorage* picHeaderPtr[N_YUV_COMP] {};
                 picHeaderPtr[Y] = recPicBuffer_->data();
                 picHeaderPtr[U] = picHeaderPtr[Y] + picPixels[Y];
                 picHeaderPtr[V] = picHeaderPtr[U] + picPixels[U];
                 for (auto & info : subPicInfoRec_) {
-                    for (auto color: COLORS) {
+                    for (auto color: YUVS) {
                         info[color].picHeaderPtr = picHeaderPtr[color];
                     }
                 }
@@ -112,8 +111,8 @@ namespace HFM {
         }
         if (!recPicLLBuffer_) {
             subPicLLInfoRec_ = subPic_->subPicInfo_;
-            uint32_t picLLPixels[N_COLOR_COMP] {};
-            for (auto color : COLORS) {
+            uint32_t picLLPixels[N_YUV_COMP] {};
+            for (auto color : YUVS) {
                 auto picSize = subPic_->GetPicSizeRaw(color);
                 // low pass sub-band element count is (inputLen + 1) >> 1
                 uint32_t widthLL = (picSize.w + 1) >> 1;
@@ -130,12 +129,12 @@ namespace HFM {
                 picWHRawLL_.emplace_back(widthLL, heightLL);
             }
             recPicLLBuffer_ = std::make_shared<BufferStorage>(picLLPixels[Y] + picLLPixels[U] + picLLPixels[V], 0);
-            PelStorage* picLLHeaderPtr[N_COLOR_COMP] {};
+            PelStorage* picLLHeaderPtr[N_YUV_COMP] {};
             picLLHeaderPtr[Y] = recPicLLBuffer_->data();
             picLLHeaderPtr[U] = picLLHeaderPtr[Y] + picLLPixels[Y];
             picLLHeaderPtr[V] = picLLHeaderPtr[U] + picLLPixels[U];
             for (auto & info : subPicLLInfoRec_) {
-                for (auto color: COLORS) {
+                for (auto color: YUVS) {
                     info[color].picHeaderPtr = picLLHeaderPtr[color];
                 }
             }
@@ -143,8 +142,8 @@ namespace HFM {
         {
             if (!refPicLLBuffer_) {
                 subPicLLInfoRef_ = subPic_->subPicInfo_;
-                uint32_t picLLPixels[N_COLOR_COMP] {};
-                for (auto color : COLORS) {
+                uint32_t picLLPixels[N_YUV_COMP] {};
+                for (auto color : YUVS) {
                     auto picSize = subPic_->GetPicSizeRaw(color);
                     // low pass sub-band element count is (inputLen + 1) >> 1
                     uint32_t widthLL = (picSize.strideW + 1) >> 1;
@@ -161,12 +160,12 @@ namespace HFM {
                     //picLLSize_.emplace_back(widthLL, heightLL);
                 }
                 refPicLLBuffer_ = std::make_shared<BufferStorage>(picLLPixels[Y] + picLLPixels[U] + picLLPixels[V], 0);
-                PelStorage* picLLHeaderPtr[N_COLOR_COMP] {};
+                PelStorage* picLLHeaderPtr[N_YUV_COMP] {};
                 picLLHeaderPtr[Y] = refPicLLBuffer_->data();
                 picLLHeaderPtr[U] = picLLHeaderPtr[Y] + picLLPixels[Y];
                 picLLHeaderPtr[V] = picLLHeaderPtr[U] + picLLPixels[U];
                 for (auto & info : subPicLLInfoRef_) {
-                    for (auto color: COLORS) {
+                    for (auto color: YUVS) {
                         info[color].picHeaderPtr = picLLHeaderPtr[color];
                     }
                 }
@@ -176,90 +175,96 @@ namespace HFM {
 
     void Encoder::StreamCabacCtxIni() {
         // vlc stream
-        BitstreamInit(&bitstreamVlcLl_, 24);
-        BitstreamInit(&bitstreamVlcHf_, 24);
+        BitstreamInit(&bitstreamVlcLl_, 30);
+        BitstreamInit(&bitstreamVlcHf_, 30);
+        BitstreamInit(&bitstreamVlcAlpha_, 30);
         // cabac ee and stream
         eeCabacLl_ = {0};
         eeCabacHf_ = {0};
-#if CABAC
-        BitstreamInit(&bitstreamCabacLl_, 24);
+        BitstreamInit(&bitstreamCabacLl_, 30);
         arienco_start_encoding(&eeCabacLl_, bitstreamCabacLl_.streamBuffer, &(bitstreamCabacLl_.byte_pos));
-#endif
-#if CABAC_HF
-        BitstreamInit(&bitstreamCabacHf_, 24);
+        BitstreamInit(&bitstreamCabacHf_, 30);
         arienco_start_encoding(&eeCabacHf_, bitstreamCabacHf_.streamBuffer, &(bitstreamCabacHf_.byte_pos));
-#endif
         // ctx ini
-#if CABAC
         InitContextsLl(&texCtx_, &motCtx_);
-#endif
-#if CABAC_HF
         InitContextsHf(&highBandCtx_);
-#endif
     }
 
     void Encoder::SubpicEncodingDone(uint32_t subpicIndex) {
         //stuffing vlc
         WriteStuffingBits(&bitstreamVlcLl_);
         WriteStuffingBits(&bitstreamVlcHf_);
+        WriteStuffingBits(&bitstreamVlcAlpha_);
         // terminate the arithmetic code
-#if CABAC
         biari_encode_symbol_final(&eeCabacLl_, 1);
         arienco_done_encoding(&eeCabacLl_);
         int iCabacLfEcodestrm_len = *eeCabacLl_.Ecodestrm_len;
-#else
-        int iCabacLfEcodestrm_len = 0;
-#endif
-#if CABAC_HF
         biari_encode_symbol_final(&eeCabacHf_, 1);
         arienco_done_encoding(&eeCabacHf_);
         int iCabacHfEcodestrm_len = *eeCabacHf_.Ecodestrm_len;
-#else
-        int iCabacHfEcodestrm_len = 0;
-#endif
         //write qp info/subpic size
         
         //qp to be added
-        int subPicBytes = bitstreamVlcLl_.byte_pos + bitstreamVlcHf_.byte_pos + iCabacLfEcodestrm_len + iCabacHfEcodestrm_len;
-        byte *picSubpicInfoPointer = bitstream_.streamBuffer + seqHeaderBytes_ + 7 + 17 * subpicIndex; //7 is pic size, slice type...bytes
+        int subPicBytes = bitstreamVlcLl_.byte_pos + bitstreamVlcHf_.byte_pos + iCabacLfEcodestrm_len + iCabacHfEcodestrm_len + 21;
 
-        int qpCombine = (qp_ << 26) + ((hlQpOffset_ + 12) << 21) + ((lhQpOffset_ + 12) << 16) \
-            + ((hhQpOffset_ + 12) << 11) + ((cbQpOffset_ + 12) << 6) + ((crQpOffset_ + 12) << 1);
+        if (inputAlphaFlag_) {
+            subPicBytes += bitstreamVlcAlpha_.byte_pos + 4;
+        }
+        //byte *picSubpicInfoPointer = bitstream_.streamBuffer + seqHeaderBytes_ + 7 + 17 * subpicIndex; //7 is pic size, slice type...bytes
+        
+        int qpCombine = (frameQp_ << 26) + ((qpGroup_.hlQpOffset + 12) << 21) + ((qpGroup_.lhQpOffset + 12) << 16) \
+            + ((qpGroup_.hhQpOffset + 12) << 11) + ((qpGroup_.cbQpOffset + 12) << 6) + ((qpGroup_.crQpOffset + 12) << 1);
+        byte *picSubpicInfoPointer = bitstream_.streamBuffer + bitstream_.byte_pos;
         picSubpicInfoPointer[0] = qpCombine >> 24;
         picSubpicInfoPointer[1] = (qpCombine >> 16) & 0xff;
         picSubpicInfoPointer[2] = (qpCombine >> 8) & 0xff;
         picSubpicInfoPointer[3] = qpCombine & 0xff;
 
-        picSubpicInfoPointer[5] = subPicBytes >> 16;
-        picSubpicInfoPointer[6] = (subPicBytes >> 8) & 0xff;
-        picSubpicInfoPointer[7] = subPicBytes & 0xff;
-        picSubpicInfoPointer[8] = iCabacLfEcodestrm_len >> 16;
-        picSubpicInfoPointer[9] = (iCabacLfEcodestrm_len >> 8) & 0xff;
-        picSubpicInfoPointer[10] = iCabacLfEcodestrm_len & 0xff;
-        picSubpicInfoPointer[11] = bitstreamVlcLl_.byte_pos >> 16;
-        picSubpicInfoPointer[12] = (bitstreamVlcLl_.byte_pos >> 8) & 0xff;
-        picSubpicInfoPointer[13] = bitstreamVlcLl_.byte_pos & 0xff;
-        picSubpicInfoPointer[14] = iCabacHfEcodestrm_len >> 16;
-        picSubpicInfoPointer[15] = (iCabacHfEcodestrm_len >> 8) & 0xff;
-        picSubpicInfoPointer[16] = iCabacHfEcodestrm_len & 0xff;
-#if CABAC
+        picSubpicInfoPointer[5] = subPicBytes >> 24;
+        picSubpicInfoPointer[6] = (subPicBytes >> 16) & 0xff;
+        picSubpicInfoPointer[7] = (subPicBytes >> 8) & 0xff;
+        picSubpicInfoPointer[8] = subPicBytes & 0xff;
+
+        picSubpicInfoPointer[9] = iCabacLfEcodestrm_len >> 24;
+        picSubpicInfoPointer[10] = (iCabacLfEcodestrm_len >> 16) & 0xff;
+        picSubpicInfoPointer[11] = (iCabacLfEcodestrm_len >> 8) & 0xff;
+        picSubpicInfoPointer[12] = iCabacLfEcodestrm_len & 0xff;
+
+        picSubpicInfoPointer[13] = bitstreamVlcLl_.byte_pos >> 24;
+        picSubpicInfoPointer[14] = (bitstreamVlcLl_.byte_pos >> 16) & 0xff;
+        picSubpicInfoPointer[15] = (bitstreamVlcLl_.byte_pos >> 8) & 0xff;
+        picSubpicInfoPointer[16] = bitstreamVlcLl_.byte_pos & 0xff;
+
+        picSubpicInfoPointer[17] = iCabacHfEcodestrm_len >> 24;
+        picSubpicInfoPointer[18] = (iCabacHfEcodestrm_len >> 16) & 0xff;
+        picSubpicInfoPointer[19] = (iCabacHfEcodestrm_len >> 8) & 0xff;
+        picSubpicInfoPointer[20] = iCabacHfEcodestrm_len & 0xff;
+        bitstream_.byte_pos += 21;
+
+        if (inputAlphaFlag_) {
+            picSubpicInfoPointer[21] = bitstreamVlcHf_.byte_pos >> 24;
+            picSubpicInfoPointer[22] = (bitstreamVlcHf_.byte_pos >> 16) & 0xff;
+            picSubpicInfoPointer[23] = (bitstreamVlcHf_.byte_pos >> 8) & 0xff;
+            picSubpicInfoPointer[24] = bitstreamVlcHf_.byte_pos & 0xff;
+            bitstream_.byte_pos += 4;
+        }
         memcpy(bitstream_.streamBuffer + bitstream_.byte_pos , eeCabacLl_.Ecodestrm, iCabacLfEcodestrm_len);
-#endif
         memcpy(bitstream_.streamBuffer + bitstream_.byte_pos + iCabacLfEcodestrm_len, bitstreamVlcLl_.streamBuffer, bitstreamVlcLl_.byte_pos);
-#if CABAC_HF
         memcpy(bitstream_.streamBuffer + bitstream_.byte_pos + *eeCabacLl_.Ecodestrm_len + bitstreamVlcLl_.byte_pos, eeCabacHf_.Ecodestrm, *eeCabacHf_.Ecodestrm_len);
-#endif
         memcpy(bitstream_.streamBuffer + bitstream_.byte_pos + iCabacLfEcodestrm_len + bitstreamVlcLl_.byte_pos + iCabacHfEcodestrm_len, bitstreamVlcHf_.streamBuffer, bitstreamVlcHf_.byte_pos);
-#if CABAC
+        if (inputAlphaFlag_) {
+            memcpy(bitstream_.streamBuffer + bitstream_.byte_pos + iCabacLfEcodestrm_len + bitstreamVlcLl_.byte_pos + iCabacHfEcodestrm_len + bitstreamVlcHf_.byte_pos, bitstreamVlcAlpha_.streamBuffer, bitstreamVlcAlpha_.byte_pos);
+        }
         BitstreamRelease(&bitstreamCabacLl_);
-#endif
-#if CABAC_HF
         BitstreamRelease(&bitstreamCabacHf_);
-#endif
         BitstreamRelease(&bitstreamVlcLl_);
         BitstreamRelease(&bitstreamVlcHf_);
+        BitstreamRelease(&bitstreamVlcAlpha_);
 
-        bitstream_.byte_pos += subPicBytes;
+        bitstream_.byte_pos += (subPicBytes - 21);
+        if (inputAlphaFlag_) {
+            bitstream_.byte_pos -= 4;
+        }
     }
 
     void Encoder::PicEncodingDone() {
@@ -358,8 +363,8 @@ namespace HFM {
                         {-8,-7,-5,0,0},
                     };
                     int qpOffset = 0;
-                    if (qp_ > 12)
-                        qpOffset = (qp_ - 12) / 2;
+                    if (frameQp_ > 12)
+                        qpOffset = (frameQp_ - 12) / 2;
                     int lumaIndx = (mean8x8 < ((200 * 4) + (1 << 11))) ? 0 : 1;
                     int varIndx = 4;
                     if (var8x8 < (10 * 8)) {
@@ -381,10 +386,10 @@ namespace HFM {
                 int mbQpDeltaC = 0;
                 if (isSubpicBoud && (var8x8 < 10000)) {
                     int curMbQP;
-                    Clip(qp_ + mbQpDeltaA + mbQpDeltaB, curMbQP, 0, 39);
+                    Clip(frameQp_ + mbQpDeltaA + mbQpDeltaB, curMbQP, 0, 39);
                     //curMbQP = qp_[Y] + mbQpDeltaA + mbQpDeltaB + mbQpDeltaC;
                     if (curMbQP > 8)
-                        mbQpDeltaC = 8 - qp_ - mbQpDeltaA - mbQpDeltaB;
+                        mbQpDeltaC = 8 - frameQp_ - mbQpDeltaA - mbQpDeltaB;
                 }
                 mbDeltaQP_[mbY][mbX]= mbQpDeltaA + mbQpDeltaB + mbQpDeltaC;
             }
@@ -397,25 +402,34 @@ namespace HFM {
         bool needRef = frameType == FRAME_I && frameCount_ > 1 && intraPeriod_ > 1;
         auto llEncoder = std::make_shared<LLEncoder>();
         auto hfEncoder = std::make_shared<HFEncoder>();
+        auto alphaEncoder = std::make_shared<AlphaEncoder>();
+        if (frameType == FRAME_P) {
+            Clip<int32_t, uint8_t>(baseQp_ + qpGroup_.pFrameQpOffset, frameQp_,0, 39);
+        } else {
+            frameQp_ = baseQp_;
+        }
         for (auto & subPicInfo : subPic_->subPicInfo_) {
             uint32_t subPicId = subPicInfo[Y].id;
             StreamCabacCtxIni();
             subPic_->DWT(subPicInfo);
+            if (inputAlphaFlag_) {
+                subPic_->GetAlpha(subPicInfo);
+            }
             DetermineMBdeltaQP(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1);
             if (frameType == FRAME_P) {
                 subPic_->SetLLReference(subPicLLInfoRef_[subPicId]);
-                llEncoder->Set(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
+                llEncoder->Set(pixelFormat_, subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
                     subPic_->subBands_[LL], subPic_->subBandsRec_[LL], subPic_->subBandsRef_[LL], 
-                    qp_, cbQpOffset_, crQpOffset_);
+                    frameQp_, qpGroup_.cbQpOffset, qpGroup_.crQpOffset, cclmEnable_);
             } else {
-                llEncoder->Set(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
-                    subPic_->subBands_[LL], subPic_->subBandsRec_[LL], qp_, cbQpOffset_, crQpOffset_);
+                llEncoder->Set(pixelFormat_, subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
+                    subPic_->subBands_[LL], subPic_->subBandsRec_[LL], frameQp_, qpGroup_.cbQpOffset, qpGroup_.crQpOffset, cclmEnable_);
             }
             llEncoder->LLEncode(&bitstreamVlcLl_, &eeCabacLl_, &texCtx_, &motCtx_, frameType, qpDeltaEnable_, mbDeltaQP_);
 
-            hfEncoder->Set(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
+            hfEncoder->Set(pixelFormat_, subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
                 subPic_->subBands_, subPic_->subBandsRec_,
-                qp_, cbQpOffset_, crQpOffset_, hlQpOffset_, lhQpOffset_, hhQpOffset_);
+                frameQp_, qpGroup_);
             hfEncoder->HFEncode(&bitstreamVlcHf_, &eeCabacHf_, &highBandCtx_, qpDeltaEnable_, mbDeltaQP_, hfTransformSkip_);
 
             Status recStatus = RecImage(subPic_->subBandsRec_, subPicInfo, subPicInfoRec_, subPicLLInfoRec_, subPicLLInfoRef_, 
@@ -424,6 +438,12 @@ namespace HFM {
             if (recStatus != Status::SUCCESS) {
                 LOGE("%s\n", "Reconstruct image failed.");
             }
+
+            if (inputAlphaFlag_) {
+                alphaEncoder->Set(subPicInfo[Y].w, subPicInfo[Y].h, subPic_->alphaBuffer_, inputAlpha16bitFlag_, &bitstreamVlcAlpha_);
+                alphaEncoder->AlphaEncode();
+            }
+
             SubpicEncodingDone(subPicInfo[Y].id);
         }
         PicEncodingDone();

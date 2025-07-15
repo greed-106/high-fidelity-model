@@ -33,8 +33,8 @@
 namespace HFM {
     SubPicDec::SubPicDec(PixelFormat pixelFormat, uint32_t picWidth, uint32_t picHeight, uint32_t subPicWidth, uint32_t subPicHeight) {
         SubPic::Init(pixelFormat, picWidth, picHeight, subPicWidth, subPicHeight);
-        subBandPixels_[Y] = (subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH) >> 2;
-        subBandPixels_[U] = (subPicSize_[CHROMA].strideW * subPicSize_[CHROMA].strideH) >> 2;
+        subBandPixels_[Y] = (subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH * 2) >> 2;
+        subBandPixels_[U] = (subPicSize_[CHROMA].strideW * subPicSize_[CHROMA].strideH * 2) >> 2;
         subBandPixels_[V] = subBandPixels_[U];
         for (const auto & band : SUB_BANDS) {
             for (const auto & subBandPixel : subBandPixels_) {
@@ -44,13 +44,14 @@ namespace HFM {
                 }
             }
         }
+        alphaBuffer_ = std::make_shared<FrameBuffer>(0);
         dwtRowBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW, 0);
-        dwtTransTmpBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH, 0);
+        dwtTransTmpBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH * 2, 0);
     }
 
 
     void SubPicDec::SetLLReference(SubPicInfoMap& subPicLLInfoRef) {
-        for (const auto & color : COLORS) {
+        for (const auto & color : YUVS) {
             auto info = subPicLLInfoRef[color];
             auto currPos = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
             Pel* subBandRefLL = subBandsRef_[LL][color]->data();

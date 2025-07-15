@@ -41,13 +41,8 @@ namespace HFM {
     void LLPuITrans::Set(uint8_t puWidth, uint8_t puHeight, uint8_t predMode) {
         puWidth_ = puWidth;
         puHeight_ = puHeight;
-#if DST
-        horITransMode_ = ((puWidth == 4) && (predMode == INTRA_HOR || predMode == INTRA_PLANAR) ? DST7 : DCT2);
-        verITransMode_ = ((puHeight == 4) && (predMode == INTRA_VER || predMode == INTRA_PLANAR) ? DST7 : DCT2);
-#else
-        horITransMode_ = DCT2;
-        verITransMode_ = DCT2;
-#endif
+        horITransMode_ = ((puWidth == 4) && (predMode == INTRA_HOR || predMode == INTRA_CCLM) ? DST7 : DCT2);
+        verITransMode_ = ((puHeight == 4) && (predMode == INTRA_VER || predMode == INTRA_CCLM) ? DST7 : DCT2);
     }
 
     void LLPuITrans::DST7W4(std::vector<int32_t>& src, std::vector<int32_t>& dst, uint8_t length, uint8_t shift) {

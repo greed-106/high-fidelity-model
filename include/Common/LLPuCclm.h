@@ -44,11 +44,12 @@ namespace HFM {
     public:
         LLPuCclm();
         ~LLPuCclm();
-        void Set(uint32_t mbX, uint32_t mbY, uint8_t colorComponent);
+        void Set(uint32_t puWidth, uint32_t puHeight, uint32_t mbX, uint32_t mbY, uint8_t colorComponent);
         void PushNbr(SharedFrameBuffer llBandPicYRec, SharedFrameBuffer llBandPicURec, SharedFrameBuffer llBandPicVRec, uint32_t puYPixelIndex1, uint32_t puYPixelIndex2, bool avg, uint32_t puUVPixelIndex);
         void GetCclmScale(SharedFrameBuffer llBandPicYRec, SharedFrameBuffer llBandPicURec, SharedFrameBuffer llBandPicVRec, uint32_t puYPixelIndex, uint32_t lineYWidth, uint32_t puUVPixelIndex, uint32_t lineUVWidth);
         void ComLLCclmPred(SharedFrameBuffer llBandPicYRec, uint32_t puYPixelIndex, uint32_t lineYWidth, std::vector<int32_t>& intraPred);
     private:
+        uint32_t puWidth_, puHeight_;
         uint8_t colorComponent_;
         uint32_t shift1_;
         bool leftAvail_, upAvail_;

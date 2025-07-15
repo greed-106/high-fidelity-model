@@ -29,7 +29,6 @@
 * ====================================================================================================================
 */
 #include "HFEncoder.h"
-#include "Tool.h"
 
 namespace HFM {
     HFEncoder::HFEncoder() {
@@ -63,73 +62,24 @@ namespace HFM {
     }
 
 
-    void HFEncoder::Set(uint32_t hfBandWidth, uint32_t hfBandHeight, SubBandMap& subPic, SubBandMap& subPicRec,
-        uint8_t qp, int32_t cbQpOffset, int32_t crQpOffset, int32_t hlQpOffset, int32_t lhQpOffset, int32_t hhQpOffset) {
+    void HFEncoder::Set(PixelFormat pixelFormat, uint32_t hfBandWidth, uint32_t hfBandHeight, SubBandMap& subPic, SubBandMap& subPicRec,
+        uint8_t qp, QPGroup qpGroup) {
+        pixelFormat_ = pixelFormat;
         hfBandWidth_ = hfBandWidth;
         hfBandHeight_ = hfBandHeight;
         subPic_ = &subPic;
         subPicRec_ = &subPicRec;
-        Clip<int8_t, uint8_t>(qp + hlQpOffset, qp_[HL][Y], 0, 39);
-        Clip<int8_t, uint8_t>(qp + lhQpOffset, qp_[LH][Y], 0, 39);
-        Clip<int8_t, uint8_t>(qp + hhQpOffset, qp_[HH][Y], 0, 39);
+        Clip<int8_t, uint8_t>(qp + qpGroup.hlQpOffset, qp_[HL][Y], 0, 39);
+        Clip<int8_t, uint8_t>(qp + qpGroup.lhQpOffset, qp_[LH][Y], 0, 39);
+        Clip<int8_t, uint8_t>(qp + qpGroup.hhQpOffset, qp_[HH][Y], 0, 39);
         for (hfBandIdx_ = HL; hfBandIdx_ <= HH; hfBandIdx_++) {
-            Clip<int8_t, uint8_t>(qp_[hfBandIdx_][Y] + cbQpOffset, qp_[hfBandIdx_][U], 0, 39);
-            Clip<int8_t, uint8_t>(qp_[hfBandIdx_][Y] + crQpOffset, qp_[hfBandIdx_][V], 0, 39);
+            Clip<int8_t, uint8_t>(qp_[hfBandIdx_][Y] + qpGroup.cbQpOffset, qp_[hfBandIdx_][U], 0, 39);
+            Clip<int8_t, uint8_t>(qp_[hfBandIdx_][Y] + qpGroup.crQpOffset, qp_[hfBandIdx_][V], 0, 39);
         }
-    }
-
-    uint32_t HFEncoder::SimpleRd(uint8_t qp, FrameBuffer &mbPix) {
-        uint16_t quantLeft = 0;
-        uint16_t coeff = 0;
-        uint16_t sig;
-        uint16_t rightShift = 0;
-        uint16_t leftShift = 0;
-        uint16_t qpIndex = qp;
-        uint16_t dis = 0;
-        uint16_t rate = 0;
-        pel tempPix;
-
-        qpIndex += 4;
-        if (qpIndex < 16) {
-            leftShift = 2 - (qpIndex >> 3);
-        }
-
-        if (qpIndex > 23) {
-            rightShift = (qpIndex >> 3) - 2;
-        }
-        qpIndex &= 7;
-
-        int qScale = SIMP_QUANT_SCALE[qpIndex];
-        int qShift = SIMP_QUANT_SHIFT[qpIndex];
-        int deadzone = SIMP_DEADZONE[qpIndex];
-        int round = SIMP_ROUND[qpIndex];
-        int quantsize = 1 << qShift;
-        int quantsizeMin1 = quantsize - 1;
-
-        for (int i = 0; i < (64); i++) {
-            coeff = abs(mbPix[i]);
-            coeff <<= leftShift;
-            coeff >>= rightShift;
-
-            coeff *= qScale;
-            quantLeft = (coeff & quantsizeMin1);
-            tempPix = coeff >> qShift;
-            if (coeff > deadzone && quantLeft > round) {
-                quantLeft = (quantsize - quantLeft);
-                tempPix++;
-            }
-            Clip(tempPix, tempPix, 0, 255);
-            quantLeft <<= rightShift;
-            quantLeft >>= leftShift;
-            dis += quantLeft;
-            rate += VLCTable0(tempPix);
-        }
-        uint16_t lambda = SIMP_LAMBDA[qp];
-        return (rate * lambda + dis);
     }
 
     void HFEncoder::ChromaEnhanceQuant(FrameBuffer& mbPix) {
-        uint8_t mbNumber = 2;
+        uint8_t mbNumber = (pixelFormat_ == PixelFormat::YUV422P10LE ? 2 : 4);
         for (int mbIdx = 0; mbIdx < mbNumber; mbIdx++) {
             uint32_t sum=0;
             for (int i = 0; i < 16; i++) {
@@ -156,7 +106,7 @@ namespace HFM {
 
         uint32_t maxWidthMb = (hfBandWidth_ + MB_SIZE - 1) / MB_SIZE;
         uint32_t maxHeightMb = (hfBandHeight_ + MB_SIZE - 1) / MB_SIZE;
-        uint8_t refQP[N_SUB_BANDS][N_COLOR_COMP] = {0};
+        uint8_t refQP[N_SUB_BANDS][N_YUV_COMP] = {0};
         FrameBuffer* ptr;
         for (uint32_t mbY = 0; mbY < maxHeightMb; mbY++) {
             for (uint32_t mbX = 0; mbX < maxWidthMb; mbX++) {
@@ -190,22 +140,14 @@ namespace HFM {
 
                 for (hfBandIdx_ = HL; hfBandIdx_ <= HH; hfBandIdx_++) {
                     for (colorComponent_ = Y; colorComponent_ <= V; colorComponent_++) {
-                        componentShiftX_ = (colorComponent_ == Y) ? 0 : 1;
+                        componentShiftX_ = (colorComponent_ != Y&& pixelFormat_ == PixelFormat::YUV422P10LE) ? 1 : 0;
                         lineWidth_ = hfBandWidth_ >> componentShiftX_;
                         pixelIndex_ = mbY * MB_SIZE  * lineWidth_ + mbX * (MB_SIZE >> componentShiftX_);
                         uint8_t curMbQP = mbQp_[hfBandIdx_][colorComponent_];
                         hfMBOriReorder();
-                        hfTransITrans_->Set(colorComponent_, 0);
+                        hfTransITrans_->Set(componentShiftX_, 0);
                         hfTransITrans_->ComHFTransITrans(mbOri_, mbHad_);
-#if FAST_TRANSKIP
-                        if (colorComponent_ == Y && hfTransformSkip) {
-                            bestTransType_ = ((SimpleRd(curMbQP, mbOri_) < SimpleRd(curMbQP, mbHad_)) ? HF_NOHAD : HF_HAD);
-                        } else 
-#endif
-                        {
-                            bestTransType_ = HF_HAD;
-                        }
-#if !FAST_TRANSKIP
+                        bestTransType_ = HF_HAD;
                         if (colorComponent_ == Y && hfTransformSkip) {
                             float cost[2] = {0,0};
                             uint32_t dis=0, rate=0;
@@ -215,7 +157,7 @@ namespace HFM {
                                 encoderQuant_->Quant(*ptr, mbCoeff_, 0);
                                 hfEncoderEntropy_->GetCabcaState();
                                 int tmpLeftMaxCoeff = hfEncoderEntropy_->bgParams_.leftCoefMax[3* (hfBandIdx_-1)];
-                                hfEncoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, bestTransType_);
+                                hfEncoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, componentShiftX_, bestTransType_);
                                 hfEncoderEntropy_->HFEntropyCoeffGroup(mbCoeff_, &hfEncoderEntropy_->bgParams_, hfTransformSkip);
 
                                 hfIQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_IQUANT_DYNAMIC_BIT);
@@ -233,7 +175,6 @@ namespace HFM {
                             }
                             bestTransType_ = (cost[HF_HAD] <= cost[HF_NOHAD] ? HF_HAD : HF_NOHAD);
                         }
-#endif
                         ptr = (bestTransType_ == HF_NOHAD) ? &mbOri_ : &mbHad_;
 
                         encoderQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_DEADZONE, HF_TH1, HF_RDOQ_OFFSET, HF_QUANT_DYNAMIC_BIT);
@@ -243,14 +184,14 @@ namespace HFM {
                             ChromaEnhanceQuant(mbCoeff_);
                         }
 
-                        hfEncoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, bestTransType_);
+                        hfEncoderEntropy_->HFEntropyCoeffGroupSet(mbX == 0, hfBandIdx_, colorComponent_, componentShiftX_, bestTransType_);
                         hfEncoderEntropy_->HFEntropyCoeffGroup(mbCoeff_, &hfEncoderEntropy_->bgParams_, hfTransformSkip);
 
                         hfIQuant_->Set((MB_SIZE >> componentShiftX_), MB_SIZE, curMbQP, HF_IQUANT_DYNAMIC_BIT);
                         hfIQuant_->ComIQuant(mbCoeff_, mbRec_, 0);
 
                         if (bestTransType_ == HF_HAD) {
-                            hfTransITrans_->Set(colorComponent_, 1);
+                            hfTransITrans_->Set(componentShiftX_, 1);
                             hfTransITrans_->ComHFTransITrans(mbRec_, mbRec_);
                         }
 

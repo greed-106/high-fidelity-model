@@ -42,10 +42,14 @@ namespace HFM {
                      std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize, uint32_t bitDepth);
     void RefLLSubPic(SubPicInfoMap& subPicInfo, const std::vector<SharedFrameBuffer>& subBandLL,
                      std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize, std::vector<std::pair<uint32_t, uint32_t>> refSubPicLLSize, uint32_t bitDepth);
+    void RecAlphaSubPic(SubPicInfoMap& subPicInfo, SharedFrameBuffer AlphaBuffer, std::pair<uint32_t, uint32_t> size, uint32_t bitDepth);
 
     Status WriteRecPic(const SharedBufferStorage& recPic,
                        const std::vector<std::pair<uint32_t, uint32_t>>& size,
                        std::ofstream& recFileHandle);
+    Status WriteRecAlphaPic(const SharedBufferStorage& recPic, uint32_t alpha16bitFlag, 
+        const std::pair<uint32_t, uint32_t>& size,
+        std::ofstream& recFileHandle);
 
     void CopyRecPic(const SharedBufferStorage& recPic, const SharedBufferStorage& dstPic,
                     const std::vector<std::pair<uint32_t, uint32_t>>& size);

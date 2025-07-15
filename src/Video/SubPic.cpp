@@ -54,7 +54,7 @@ namespace HFM {
                 formatShiftW_ = 1;
                 break;
             case PixelFormat::YUV444P10LE:
-                formatShiftH_ = 1;
+                //formatShiftH_ = 1;
                 break;
         }
         picSize_[CHROMA].w = picSize_[LUMA].w >> formatShiftW_;
@@ -73,7 +73,12 @@ namespace HFM {
         for (int i = 0; i < n; ++i) {
             axis.emplace_back(currPos);
             uint32_t remainingX = fullLen - currPos;
-            uint32_t currLen = std::min(remainingX, uintLen);
+            uint32_t currLen;
+            if (i == n - 1) {
+                currLen = remainingX;
+            } else {
+                currLen = uintLen;
+            }
             length.emplace_back(currLen);
             currPos += uintLen;
         }
@@ -91,6 +96,7 @@ namespace HFM {
             picHeaderPtr_[Y] = storageBuffer_->data();
             picHeaderPtr_[U] = picHeaderPtr_[Y] + picSize_[LUMA].strideW * picSize_[LUMA].strideH;
             picHeaderPtr_[V] = picHeaderPtr_[U] + picSize_[CHROMA].strideW * picSize_[CHROMA].strideH;
+            picHeaderPtr_[A] = picHeaderPtr_[V] + picSize_[CHROMA].strideW * picSize_[CHROMA].strideH;
         }
         uint32_t subPicIndex = 0;
         for (int j = 0; j < subPicCountVer_; ++j) {
@@ -105,7 +111,7 @@ namespace HFM {
 
     void SubPic::Divide() {
         subPicCountHor_ = (picSize_[LUMA].strideW + subPicSize_[LUMA].w - 1) / subPicSize_[LUMA].w;
-        subPicCountVer_ = (picSize_[LUMA].strideH + subPicSize_[LUMA].h - 1) / subPicSize_[LUMA].h;
+        subPicCountVer_ = ((int32_t)picSize_[LUMA].strideH - (int32_t)subPicSize_[LUMA].h / 4) / (int32_t)subPicSize_[LUMA].h + 1;
 
         std::vector<uint32_t> axisXLuma;
         std::vector<uint32_t> subPicWidthLuma;
@@ -121,12 +127,12 @@ namespace HFM {
         std::vector<uint32_t> subPicHeightChroma;
         GetAxis(subPicCountVer_, picSize_[CHROMA].strideH, subPicSize_[CHROMA].h, axisYChroma, subPicHeightChroma);
 
-        std::vector<uint32_t>* axisX[] = {&axisXLuma, &axisXChroma, &axisXChroma};
-        std::vector<uint32_t>* axisY[] = {&axisYLuma, &axisYChroma, &axisYChroma};
-        std::vector<uint32_t>* subPicWidth[] = {&subPicWidthLuma, &subPicWidthChroma, &subPicWidthChroma};
-        std::vector<uint32_t>* subPicHeight[] = {&subPicHeightLuma, &subPicHeightChroma, &subPicHeightChroma};
-        uint32_t picStrideW[] = {picSize_[LUMA].strideW, picSize_[CHROMA].strideW, picSize_[CHROMA].strideW};
-        uint32_t picStrideH[] = {picSize_[LUMA].strideH, picSize_[CHROMA].strideH, picSize_[CHROMA].strideH};
+        std::vector<uint32_t>* axisX[] = {&axisXLuma, &axisXChroma, &axisXChroma, &axisXLuma};
+        std::vector<uint32_t>* axisY[] = {&axisYLuma, &axisYChroma, &axisYChroma, &axisYLuma};
+        std::vector<uint32_t>* subPicWidth[] = {&subPicWidthLuma, &subPicWidthChroma, &subPicWidthChroma, &subPicWidthLuma};
+        std::vector<uint32_t>* subPicHeight[] = {&subPicHeightLuma, &subPicHeightChroma, &subPicHeightChroma, &subPicHeightLuma};
+        uint32_t picStrideW[] = {picSize_[LUMA].strideW, picSize_[CHROMA].strideW, picSize_[CHROMA].strideW, picSize_[LUMA].strideW};
+        uint32_t picStrideH[] = {picSize_[LUMA].strideH, picSize_[CHROMA].strideH, picSize_[CHROMA].strideH, picSize_[LUMA].strideH};
 
         uint32_t subPicIndex = 0;
         for (int j = 0; j < subPicCountVer_; ++j) {
@@ -163,7 +169,7 @@ namespace HFM {
     }
 
     ImgBufSize SubPic::GetPicSizeRaw(ColorComp color) {
-        if (color == Y) {
+        if (color == Y || color == A) {
             return picSize_[LUMA];
         } else {
             return picSize_[CHROMA];

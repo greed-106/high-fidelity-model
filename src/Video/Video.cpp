@@ -36,7 +36,15 @@
 
 namespace HFM {
     Video::Video(PixelFormat pixelFormat, uint32_t frameCount, uint32_t width, uint32_t height, 
-        const std::string& inputFilePath) : pixelFormat_(pixelFormat), frameCount_(frameCount) {
+        const std::string& inputFilePath, AlphaInput alphaInput) : pixelFormat_(pixelFormat), frameCount_(frameCount) {
+        inputAlphaFlag_ = alphaInput.inputAlphaFlag;
+        inputAlpha16bitFlag_ = alphaInput.inputAlpha16bitFlag;
+        inputAlphaFile_.open(alphaInput.inputAlphaFile, std::ifstream::binary);
+        if (inputAlphaFile_.fail()) {
+            LOGE("failed to open: %s\n", alphaInput.inputAlphaFile.c_str());
+        } else {
+            LOGI("open: %s\n", alphaInput.inputAlphaFile.c_str());
+        }
         this->GetSize(width, height);
         InitFrameBuffer();
         inputVideo_.open(inputFilePath, std::ifstream::binary);
@@ -63,7 +71,7 @@ namespace HFM {
     }
 
     void Video::GetSize(uint32_t width, uint32_t height) {
-        uint32_t alignSize = MB_SIZE << (pixelFormat_ == PixelFormat::YUV444P10LE ? 0 : 1);
+        uint32_t alignSize = MB_SIZE << 1;
         size_[LUMA].w = width;
         size_[LUMA].h = height;
         size_[LUMA].strideW = Align(width, alignSize);
@@ -77,7 +85,7 @@ namespace HFM {
                 formatShiftW_ = 1;
                 break;
             case PixelFormat::YUV444P10LE:
-                formatShiftH_ = 1;
+                //formatShiftH_ = 1;
                 break;
         }
         size_[CHROMA].w = size_[LUMA].w >> formatShiftW_;
@@ -86,6 +94,9 @@ namespace HFM {
         size_[CHROMA].strideH = size_[LUMA].strideH >> formatShiftH_;
         frameBufferPixels_ = size_[LUMA].strideW * size_[LUMA].strideH +
                              2 * (size_[CHROMA].strideW * size_[CHROMA].strideH);
+        if (inputAlphaFlag_) {
+            frameBufferPixels_ += size_[LUMA].strideW * size_[LUMA].strideH;
+        }
     }
 
     void Video::InitFrameBuffer() {
@@ -113,11 +124,43 @@ namespace HFM {
         currPos += size.strideW;
     }
 
+
+    void Video::ReadOneAlphaPlane(PelStorage*& currPos, ImgBufSize size) {
+        for (uint32_t h = 0; h < size.h; ++h) {
+            if (inputAlpha16bitFlag_) {
+                inputAlphaFile_.read((char *)currPos, size.w * sizeof(PelStorage));
+                currPos += size.w;
+            } else {
+                for (uint32_t w = 0; w < size.w; ++w) {
+                    inputAlphaFile_.read((char *)currPos, 1);
+                    currPos++;
+                }
+            }
+            // padding right
+            for (uint32_t w = 0; w < size.strideW - size.w; ++w) {
+                *currPos = *(currPos - 1);
+                currPos++;
+            }
+        }
+        // padding bottom
+        currPos -= size.strideW;
+        for (uint32_t h = 0; h < size.strideH - size.h; ++h) {
+            for (uint32_t w = 0; w < size.strideW; ++w) {
+                currPos[w + size.strideW] = currPos[w];
+            }
+            currPos += size.strideW;
+        }
+        currPos += size.strideW;
+    }
+
     void Video::ReadOneFrame() {
         auto currPos = storageBuffer_->data();
         ReadOnePlane(currPos, size_[LUMA]);
         ReadOnePlane(currPos, size_[CHROMA]);
         ReadOnePlane(currPos, size_[CHROMA]);
+        if (inputAlphaFlag_) {
+            ReadOneAlphaPlane(currPos, size_[LUMA]);
+        }
         framePos_++;
     }
 

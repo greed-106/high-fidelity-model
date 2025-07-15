@@ -55,6 +55,8 @@ namespace HFM {
         std::shared_ptr<HFTransITrans>hfTransITrans_;
         std::shared_ptr<HFDecoderEntropy>hfDecoderEntropy_;
 
+        uint32_t alphaFlag_;
+        PixelFormat pixelFormat_;
         SubBandMap* subPicDec_;
         uint8_t qp_[N_SUB_BANDS][N_COLOR_COMP];
         uint32_t hfBandWidth_, hfBandHeight_;

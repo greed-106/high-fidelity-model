@@ -40,13 +40,8 @@ namespace HFM {
 
     void LLEncoderTrans::Set(uint8_t puWidth, uint8_t puHeight, uint8_t predMode) {
         this->puWidth_ = puWidth; this->puHeight_ = puHeight;
-#if DST
-        horTransMode_ = ((puWidth == 4) && (predMode == INTRA_HOR || predMode == INTRA_PLANAR) ? DST7 : DCT2);
-        verTransMode_ = ((puHeight == 4) && (predMode == INTRA_VER || predMode == INTRA_PLANAR) ? DST7 : DCT2);
-#else
-        horTransMode_ = DCT2;
-        verTransMode_ = DCT2;
-#endif
+        horTransMode_ = ((puWidth == 4) && (predMode == INTRA_HOR || predMode == INTRA_CCLM) ? DST7 : DCT2);
+        verTransMode_ = ((puHeight == 4) && (predMode == INTRA_VER || predMode == INTRA_CCLM) ? DST7 : DCT2);
     }
 
 

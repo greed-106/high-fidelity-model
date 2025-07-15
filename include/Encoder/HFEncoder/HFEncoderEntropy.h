@@ -63,7 +63,7 @@ namespace HFM {
         void Set(Bitstream* bitstreamVlcHf, EncodingEnvironment* eeCabacHf, HighBandInfoContexts* highBandCtx);
         void GetCabcaState();
         void ResetCabcaState();
-        void HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t transformType);
+        void HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t componentShiftX, uint8_t transformType);
         void HFEntropyCoeffGroup(std::vector<int32_t>& residual, EncDecBlockGroupParams* bgParams, int hfTransformSkipEnable);
         uint32_t HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams);
         void HFEntropyDeltaQp(int isLeftBoundaryMb, int subpicLumaQp, int &mbQp, int &mb_deltaQP);

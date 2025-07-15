@@ -29,12 +29,10 @@
 * ====================================================================================================================
 */
 #include <cstring>
-#include <cassert>
 #include "HFDecoderEntropy.h"
 #include "BasicTypes.h"
 #include "Utils.h"
 #include "Const.h"
-#include "Tool.h"
 
 namespace HFM {
     HFDecoderEntropy::HFDecoderEntropy() {
@@ -65,23 +63,20 @@ namespace HFM {
 
     void HFDecoderEntropy::Set(Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo) {
         bitstreamCabacHf_ = {0};
-#if CABAC_HF
         bitstreamCabacHf_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3) \
             + subpicSyntaxInfo->subpicLlCabacLength + subpicSyntaxInfo->subpicLlVlcLength;
         arideco_start_decoding(&de_, bitstreamCabacHf_.streamBuffer, 0, &bitstreamCabacHf_.read_len);
         InitContextsHf(&highBandCtx_);
-#endif
         bitstreamVlcHf_ = {0};
         bitstreamVlcHf_.streamBuffer = bitstream->streamBuffer + (bitstream->frame_bitoffset >> 3) + subpicSyntaxInfo->subpicLlCabacLength \
             + subpicSyntaxInfo->subpicLlVlcLength + subpicSyntaxInfo->subpicHfCabacLength;
-        bitstreamVlcHf_.bitstream_length = subpicSyntaxInfo->subpicLength - subpicSyntaxInfo->subpicLlCabacLength \
-            - subpicSyntaxInfo->subpicLlVlcLength - subpicSyntaxInfo->subpicHfCabacLength;
+        bitstreamVlcHf_.bitstream_length = subpicSyntaxInfo->subpicHfVlcLength;
 
         //residual_.resize(MB_SIZE*MB_SIZE);
         cbf_ = 0;
     }
 
-    void HFDecoderEntropy::HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent) {
+    void HFDecoderEntropy::HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t componentShiftX) {
         if (isLeftBoundaryMb)
             bgParams_.leftCoefMax[3 * (bandIdx - 1) + colorComponent] = 0;
         bgParams_.bandIdx = bandIdx - 1; //mapping
@@ -89,17 +84,13 @@ namespace HFM {
         if (colorComponent == Y)
             bgParams_.curBlockSize = 4;
         else
-            bgParams_.curBlockSize = 2;
+            bgParams_.curBlockSize = (4 >> componentShiftX);
         bgParams_.transformType = HF_HAD;
         //residual_.assign(residual_.size(), 0);
     }
 
     int HFDecoderEntropy::HFEntropyFlag(BiContextTypePtr pBinCtx) {
-#if CABAC_HF
         return biari_decode_symbol(&de_, pBinCtx);
-#else
-        return read_u_v(1, &bitstreamVlcHf_);
-#endif
     }
 
     inline int HFDecoderEntropy::ReadVLCTable0() {
@@ -410,8 +401,4 @@ namespace HFM {
         }
     }
 
-    void HFDecoderEntropy::HFEntropyDone()
-    {
-        assert(biari_decode_final(&de_) == 1);
-    }
 }

@@ -33,7 +33,6 @@
 
 #include "ArgParse.h"
 #include "Utils.h"
-#include "Tool.h"
 namespace HFM {
 #define REGIST_KWARG(type, name, options, description, value) \
     type& name = kwarg_ext(options, description).set_default(value);
@@ -51,6 +50,9 @@ namespace HFM {
         REGIST_KWARG(std::string, bitstream, "b,BitstreamFile", "output bitstream file", "");
         REGIST_KWARG(std::string, recFile, "o,RecFile", "reconstructed image file", "");
         REGIST_KWARG(std::string, recLLFile, "RecLLFile", "reconstructed LL sub-band image file", "");
+        REGIST_KWARG(uint32_t, inputAlphaFlag, "InputAlphaFlag", "input alpha flag", 0);
+        REGIST_KWARG(uint32_t, inputAlpha16bitFlag, "InputAlpha16bitFlag", "input alpha 16 bit flag", 0);
+        REGIST_KWARG(std::string, inputAlphaFile, "InputAlphaFile", "input alpha file", "");
         REGIST_KWARG(std::string, dwtSubPicPath, "DWTSubPicPath", "path to write DWT sub-picture file", "");
         REGIST_KWARG(uint32_t, width, "w,Width", "with of input video", 0);
         REGIST_KWARG(uint32_t, height, "h,Height", "height of input video", 0);
@@ -60,6 +62,7 @@ namespace HFM {
         REGIST_KWARG(uint32_t, bitDepth, "BitDepth", "input data bit-depth", 10);
         REGIST_KWARG(int32_t, pixelFormat, "PixelFormat", "pixel format, 0:yuv444p10le, 1:yuv422p10le2,:yuv420p10le", 1);
         REGIST_KWARG(int32_t, qp, "q,QP", "initial qp value", 15);
+        REGIST_KWARG(int32_t, pFrameQpOffset, "PFrameQpOffset", "p frame qp offset", 0);
         REGIST_KWARG(int32_t, cbQpOffset, "CbQpOffset", "cb qp offset", 2);
         REGIST_KWARG(int32_t, crQpOffset, "CrQpOffset", "cr qp offset", 2); 
         REGIST_KWARG(int32_t, hlQpOffset, "HlQpOffset", "hl qp offset", -2);
@@ -67,11 +70,8 @@ namespace HFM {
         REGIST_KWARG(int32_t, hhQpOffset, "HhQpOffset", "hh qp offset", -6);
         REGIST_KWARG(uint32_t, intraPeriod, "IntraPeriod", "intra period number, support 1~4", 1);
         REGIST_KWARG(uint32_t, qpDeltaEnable, "QPDeltaEnable", "flag to enable AQ", 0);
-#if TRANSKIP
         REGIST_KWARG(uint32_t, hfTransformSkip, "HFTransformSkip", "flag to enable HF transform skip", 1);
-#else
-        REGIST_KWARG(uint32_t, hfTransformSkip, "HFTransformSkip", "flag to enable HF transform skip", 0);
-#endif
+        REGIST_KWARG(uint32_t, cclmEnable, "CclmEnable", "flag to enable CCLM", 1);
         REGIST_KWARG(uint32_t, profileIdc, "ProfileIdc", "profile idc", 1);
         REGIST_KWARG(uint32_t, levelIdc, "LevelIdc", "level idc", 71);
         REGIST_KWARG(uint32_t, frameRate, "FrameRate", "frame rate", 30);

@@ -46,6 +46,7 @@ namespace HFM {
         void SetLLReference(SubPicInfoMap& subPicLLInfoRef);
         SubBandMap subBands_;
         SubBandMap subBandsRef_;
+        SharedFrameBuffer alphaBuffer_;
         SharedFrameBuffer dwtRowBuffer_;
         SharedFrameBuffer dwtTransTmpBuffer_;
     private:

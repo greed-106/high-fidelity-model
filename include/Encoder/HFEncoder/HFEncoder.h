@@ -46,9 +46,8 @@ namespace HFM {
     public:
         HFEncoder();
         ~HFEncoder();
-        void Set(uint32_t hfBandWidth, uint32_t hfBandHeight, SubBandMap& subPic, SubBandMap& subPicRec,
-            uint8_t qp, int32_t cbQpOffset, int32_t crQpOffset, int32_t hlQpOffset, int32_t lhQpOffset, int32_t hhQpOffset);
-        uint32_t SimpleRd(uint8_t qp, FrameBuffer &mbPix);
+        void Set(PixelFormat pixelFormat, uint32_t hfBandWidth, uint32_t hfBandHeight, SubBandMap& subPic, SubBandMap& subPicRec,
+            uint8_t qp, QPGroup qpGroup);
         uint32_t Distortion();
         void HFEncode(Bitstream* bitstreamVlcHf_, EncodingEnvironment* eeCabacHf_, HighBandInfoContexts* highBandCtx_, bool qpDelta, std::vector<std::vector<int16_t>>& mbDeltaQP, bool hfTransformSkip);
         void hfMBOriReorder();
@@ -61,6 +60,7 @@ namespace HFM {
         std::shared_ptr<HFTransITrans>hfTransITrans_;
         std::shared_ptr<HFEncoderEntropy>hfEncoderEntropy_;
 
+        PixelFormat pixelFormat_;
         SubBandMap* subPic_;
         SubBandMap* subPicRec_;
         uint8_t qp_[N_SUB_BANDS][N_COLOR_COMP];
