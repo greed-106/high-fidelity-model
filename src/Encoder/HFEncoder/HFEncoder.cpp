@@ -114,19 +114,20 @@ namespace HFM {
                     int curMbQP; //to be replaced by AQ
                     int qpMBdelta;
                     uint32_t pos = (mbY * MB_SIZE) * hfBandWidth_ + mbX * MB_SIZE;
-                    Clip(qp_[HL][Y] + mbDeltaQP[mbY][mbX], curMbQP, 0, 39);
+                    Clip<int, int>(qp_[HL][Y] + mbDeltaQP[mbY][mbX], curMbQP, 0, 39);
                     hfEncoderEntropy_->HFEntropyDeltaQp(mbX == 0, qp_[HL][Y], curMbQP, qpMBdelta);
 
                     for (int bandidx = HL; bandidx <= HH; bandidx++) {
                         for (int comIdx = Y; comIdx <= V; comIdx++) {
                             if (mbX == 0) {
-                                Clip(qp_[bandidx][comIdx] + qpMBdelta, mbQp_[bandidx][comIdx], 0, 39);
+                                Clip<int8_t, uint8_t>(qp_[bandidx][comIdx] + qpMBdelta, mbQp_[bandidx][comIdx], 0, 39);
                                 refQP[bandidx][comIdx] = mbQp_[bandidx][comIdx];
                             } else {
-                                Clip(refQP[bandidx][comIdx] + qpMBdelta, mbQp_[bandidx][comIdx], 0, 39);
+                                Clip<int8_t, uint8_t>(refQP[bandidx][comIdx] + qpMBdelta, mbQp_[bandidx][comIdx], 0, 39);
                                 refQP[bandidx][comIdx] = mbQp_[bandidx][comIdx];
                             }
                         }
+
                     }
 
                 } else {
@@ -136,7 +137,6 @@ namespace HFM {
                         }
                     }
                 }
-
 
                 for (hfBandIdx_ = HL; hfBandIdx_ <= HH; hfBandIdx_++) {
                     for (colorComponent_ = Y; colorComponent_ <= V; colorComponent_++) {

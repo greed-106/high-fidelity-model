@@ -212,13 +212,13 @@ namespace HFM {
                     mbQp_[Y] = curMbQP;
                     //printf(" \t %d", curMbQP);
                     if (mbX_ == 0) {
-                        Clip<uint8_t, uint8_t>(qpMbDelta + qp_[V], mbQp_[V], 0, 39);
-                        Clip<uint8_t, uint8_t>(qpMbDelta + qp_[U], mbQp_[U], 0, 39);
+                        Clip<int8_t, uint8_t>(qpMbDelta + qp_[V], mbQp_[V], 0, 39);
+                        Clip<int8_t, uint8_t>(qpMbDelta + qp_[U], mbQp_[U], 0, 39);
                         refQP_U = mbQp_[U];
                         refQP_V = mbQp_[V];
                     } else {
-                        Clip<uint8_t, uint8_t>(qpMbDelta + refQP_V, mbQp_[V], 0, 39);
-                        Clip<uint8_t, uint8_t>(qpMbDelta + refQP_U, mbQp_[U], 0, 39);
+                        Clip<int8_t, uint8_t>(qpMbDelta + refQP_V, mbQp_[V], 0, 39);
+                        Clip<int8_t, uint8_t>(qpMbDelta + refQP_U, mbQp_[U], 0, 39);
                         refQP_U = mbQp_[U];
                         refQP_V = mbQp_[V];
                     }
