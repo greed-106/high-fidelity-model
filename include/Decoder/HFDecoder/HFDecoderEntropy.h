@@ -66,6 +66,7 @@ namespace HFM {
         void HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams);
         void HFEntropyCoeffGroup(uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
         void HFEntropyDecode(uint32_t qpDeltaEnable, uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
+        void HFEntropyDone();
         inline int ReadVLCTable0();
         inline int ReadVLCTable1();
         inline int ReadVLCTable2();

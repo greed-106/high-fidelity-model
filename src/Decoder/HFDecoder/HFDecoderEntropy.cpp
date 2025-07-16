@@ -29,6 +29,7 @@
 * ====================================================================================================================
 */
 #include <cstring>
+#include <cassert>
 #include "HFDecoderEntropy.h"
 #include "BasicTypes.h"
 #include "Utils.h"
@@ -401,4 +402,8 @@ namespace HFM {
         }
     }
 
+    void HFDecoderEntropy::HFEntropyDone()
+    {
+        assert(biari_decode_final(&de_) == 1);
+    }
 }
