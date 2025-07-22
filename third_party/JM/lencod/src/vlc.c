@@ -231,6 +231,14 @@ void  writeUVLC2buffer(SyntaxElement *se, Bitstream *currStream)
 }
 
 
+void BitstreamClean(Bitstream *bitstream, int logMemSize)
+{
+    long long max_bs_size = (long long)1 << logMemSize;
+    bitstream->bits_to_go = 8;
+    bitstream->byte_pos = 0;
+    bitstream->byte_buf = 0;
+    bitstream->buffer_size = max_bs_size;
+}
 
 void BitstreamInit(Bitstream *bitstream, int logMemSize)
 {

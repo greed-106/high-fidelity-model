@@ -59,7 +59,8 @@ namespace HFM {
         void StreamCabacCtxIni();
         void SubpicEncodingDone(uint32_t subpicIndex);
         void PicEncodingDone();
-        void DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight);
+        void DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight, uint32_t thrParam, uint32_t frameQPoffset);
+        int DetermineSubPicQP(uint32_t subpicIndex, uint32_t totalSubPicNum, uint32_t bandWidth, uint32_t bandHeight);
         Bitstream bitstream_;
         int seqHeaderBytes_;
     private:

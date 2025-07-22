@@ -99,12 +99,44 @@ int main(int argc, const char** argv) {
         LOGI("encode frame %d\n", i);
         std::string frameDesc{"frame: " + std::to_string(i)};
         BitstreamInit(bitstream, 32);
-        encoder->seqHeaderBytes_ = WriteSeqPicHeader(i, args.intraPeriod, &seqPicHeaderInfo, bitstream);
         subPic->GetFrame(video->MoveToNextFrame());
         timer.Start(frameDesc);
-        encoder->SetInput(pixelFormat, subPic, alphaInput, qpGroup,
-            args.qpDeltaEnable, args.hfTransformSkip, args.cclmEnable);
-        encoder->Encode(i);
+        while (1) {
+            encoder->seqHeaderBytes_ = WriteSeqPicHeader(i, args.intraPeriod, &seqPicHeaderInfo, bitstream);
+            encoder->SetInput(pixelFormat, subPic, alphaInput, qpGroup,
+                args.qpDeltaEnable, args.hfTransformSkip, args.cclmEnable);
+            encoder->Encode(i);
+            if (args.qpDeltaEnable) {
+                int bitPixel = (args.pixelFormat == 0) ? 3 : 2;
+                float compressRatio = (args.width * args.height * bitPixel * args.bitDepth) / (bitstream->byte_pos * 8.0);
+                if (compressRatio < 8) {
+                    if (compressRatio < 8 / 1.21) {
+                        qpGroup.qp += 5;
+                    }
+                    else if (compressRatio < 8 / 1.15) {
+                        qpGroup.qp += 4;
+                    }
+                    else if (compressRatio < 8 / 1.10) {
+                        qpGroup.qp += 3;
+                    }
+                    else if (compressRatio < 8 / 1.05) {
+                        qpGroup.qp += 2;
+                    }
+                    else {
+                        qpGroup.qp += 1;
+                    }
+                    BitstreamClean(bitstream, 32);
+                }
+                else
+                {
+                    qpGroup.qp = args.qp;
+                    break;
+                }
+            }
+            else {
+                break;
+            }
+        }
         BitstreamWrite(i, bitstream, (char*) args.bitstream.data());
         timer.End(frameDesc);
     }

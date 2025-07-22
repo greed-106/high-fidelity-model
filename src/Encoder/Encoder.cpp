@@ -277,8 +277,48 @@ namespace HFM {
         picSizePointer[3] = frameByte & 0xff;
     }
 
+    int Encoder::DetermineSubPicQP(uint32_t subpicIndex, uint32_t totalSubPicNum, uint32_t bandWidth, uint32_t bandHeight) {
+        int curUsedBytes = bitstream_.byte_pos - seqHeaderBytes_;
+        int curSubPicBytes = bitstreamVlcLl_.byte_pos + bitstreamVlcHf_.byte_pos + *eeCabacLl_.Ecodestrm_len + *eeCabacHf_.Ecodestrm_len + 21;
+        int targeRatio = 8;
+        float subPicTargetBit = bandWidth * bandHeight * 4 * 20 / targeRatio * 0.9;
+        float usedBitPercentage = curUsedBytes * 8.0 / ((subpicIndex + 1)*subPicTargetBit);
+        float curBitPercentage = curSubPicBytes * 8.0 / subPicTargetBit;
+        float remainBitPercentage = (subPicTargetBit * (totalSubPicNum - subpicIndex - 1)) / (totalSubPicNum * subPicTargetBit - curUsedBytes * 8.0);
+        if (remainBitPercentage < 0) {
+            remainBitPercentage = 2.5;
+        }
+        float bitPercentage = (curBitPercentage > usedBitPercentage) ? curBitPercentage : usedBitPercentage;
+        int frameQPoffset = 0;
+        bitPercentage = (bitPercentage > remainBitPercentage) ? bitPercentage : remainBitPercentage;
+        if (bitPercentage > 1.5) {
+            frameQPoffset = 8;
+        }
+        else if (bitPercentage > 1.41) {
+            frameQPoffset = 7;
+        }
+        else if (bitPercentage > 1.34) {
+            frameQPoffset = 6;
+        }
+        else if (bitPercentage > 1.27) {
+            frameQPoffset = 5;
+        }
+        else if (bitPercentage > 1.21) {
+            frameQPoffset = 4;
+        }
+        else if (bitPercentage > 1.15) {
+            frameQPoffset = 3;
+        }
+        else if (bitPercentage > 1.10) {
+            frameQPoffset = 2;
+        }
+        else if (bitPercentage > 1.05) {
+            frameQPoffset = 1;
+        }
+        return frameQPoffset;
+    }
 
-    void Encoder::DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight) {
+    void Encoder::DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight, uint32_t thr_param, uint32_t frameQPoffset) {
         uint32_t maxWidthMb = (bandWidth + MB_SIZE - 1) / MB_SIZE;
         uint32_t maxHeightMb = (bandHeight + MB_SIZE - 1) / MB_SIZE;
         mbDeltaQP_.resize(maxHeightMb);
@@ -300,7 +340,8 @@ namespace HFM {
                 int64_t var8x8 = 0;
                 int maxWidthMb = (stride + MB_SIZE - 1) / MB_SIZE;
                 int mbXpos = pos % stride;
-                bool isSubpicBoud = (mbXpos == 0) || (mbXpos / MB_SIZE == maxWidthMb - 1);
+                bool isSubpicBoud = (mbXpos == 0) || (mbXpos / MB_SIZE == maxWidthMb - 1) || (mbY == 0) || (mbY == maxHeightMb - 1);
+                bool isSubpicBoudLeftUp = (mbXpos == 0) || (mbY == 0) ;
                 for (uint8_t yPos = 0; yPos < 8; ++yPos) {
                     for (uint8_t xPos = 0; xPos < 8; ++xPos) {
                         int blkXidx = xPos / 4;
@@ -350,7 +391,7 @@ namespace HFM {
                     }
 
                     varDiffAbs = abs(varDiffAbs);
-                    int varDeltaTemp = log2((varDiffAbs / 64) + 1);
+                    int varDeltaTemp = log2((varDiffAbs / thr_param) + 1);
                     mbQpDeltaA = (varDeltaTemp*varStrengthTemp) >> varShiftTemp;
                     Clip(mbQpDeltaA * signFlag, mbQpDeltaA, -16, 15);
 
@@ -383,13 +424,16 @@ namespace HFM {
                     mbQpDeltaB = deltaQpMap[lumaIndx][varIndx] + qpOffset;
                 }
 
-                int mbQpDeltaC = 0;
+                int mbQpDeltaC = 0; 
+                int curMbQP;
+                Clip(frameQp_ + mbQpDeltaA + mbQpDeltaB, curMbQP, 0, 39);
                 if (isSubpicBoud && (var8x8 < 10000)) {
-                    int curMbQP;
-                    Clip(frameQp_ + mbQpDeltaA + mbQpDeltaB, curMbQP, 0, 39);
                     //curMbQP = qp_[Y] + mbQpDeltaA + mbQpDeltaB + mbQpDeltaC;
-                    if (curMbQP > 8)
-                        mbQpDeltaC = 8 - frameQp_ - mbQpDeltaA - mbQpDeltaB;
+                    if (curMbQP > frameQp_ - 6)
+                        mbQpDeltaC = frameQp_ - 6 - frameQp_ - mbQpDeltaA - mbQpDeltaB;
+                }
+                else if (isSubpicBoudLeftUp) {
+                    mbQpDeltaC =  - frameQPoffset;
                 }
                 mbDeltaQP_[mbY][mbX]= mbQpDeltaA + mbQpDeltaB + mbQpDeltaC;
             }
@@ -408,6 +452,9 @@ namespace HFM {
         } else {
             frameQp_ = baseQp_;
         }
+        int thrParam = 64;
+        int frameQPoffset = 0;
+        int totalSubPicNum = subPic_->subPicCountHor_ * subPic_->subPicCountVer_;
         for (auto & subPicInfo : subPic_->subPicInfo_) {
             uint32_t subPicId = subPicInfo[Y].id;
             StreamCabacCtxIni();
@@ -415,7 +462,9 @@ namespace HFM {
             if (inputAlphaFlag_) {
                 subPic_->GetAlpha(subPicInfo);
             }
-            DetermineMBdeltaQP(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1);
+            DetermineMBdeltaQP(subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1, thrParam, frameQPoffset);
+            frameQp_ += frameQPoffset;
+            printf("subpic id:%d, frameQP :%d \n", subPicId, frameQp_);
             if (frameType == FRAME_P) {
                 subPic_->SetLLReference(subPicLLInfoRef_[subPicId]);
                 llEncoder->Set(pixelFormat_, subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1,
@@ -445,16 +494,32 @@ namespace HFM {
             }
 
             SubpicEncodingDone(subPicInfo[Y].id);
+            if (qpDeltaEnable_) {
+                frameQPoffset = DetermineSubPicQP(subPicInfo[Y].id, totalSubPicNum, subPicInfo[Y].w >> 1, subPicInfo[Y].h >> 1);
+                if (frameQPoffset > 2)
+                    thrParam = 16;
+                else if (frameQPoffset > 0)
+                    thrParam = 32;
+                else
+                    thrParam = 64;
+            }
         }
         PicEncodingDone();
-
-        if (!recFile_.empty()) {
+        int isWriteFlag = 1;
+        if (qpDeltaEnable_) {
+            int bitPixel = (pixelFormat_ == PixelFormat::YUV444P10LE) ? 3 : 2;
+            float compressRatio = (picWHRaw_[Y].first * picWHRaw_[Y].second * bitPixel * bitDepth_) / (bitstream_.byte_pos * 8.0);
+            if (compressRatio < 8) {
+                isWriteFlag = 0;
+            }
+        }
+        if ((!recFile_.empty()) & isWriteFlag) {
             WriteRecPic(recPicBuffer_, picWHRaw_, recFileHandle_);
             auto psnr = CalcPSNR(subPic_->storageBuffer_->data(), recPicBuffer_->data(),
                                  subPic_->picSize_, recPicSize_, bitDepth_, PSNR_1023);
             LOGI("PSNR Y = %5.2f, U = %5.2f, V = %5.2f\n", psnr[Y], psnr[U], psnr[V]);
         }
-        if (!recLLFile_.empty()) {
+        if ((!recLLFile_.empty()) & isWriteFlag) {
             WriteRecPic(recPicLLBuffer_, picWHRawLL_, recLLFileHandle_);
         }
     }
