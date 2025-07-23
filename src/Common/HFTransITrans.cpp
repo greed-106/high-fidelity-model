@@ -37,8 +37,8 @@ namespace HFM {
     HFTransITrans::~HFTransITrans() {
     }
 
-    void HFTransITrans::Set(uint8_t colorComponent, uint8_t isITrans) {
-        pixNum_ = (colorComponent == Y) ? (MB_SIZE*MB_SIZE) : (MB_SIZE*MB_SIZE >> 1);
+    void HFTransITrans::Set(uint8_t componentShiftX_, uint8_t isITrans) {
+        pixNum_ = (MB_SIZE*MB_SIZE >> componentShiftX_);
         isITrans_ = isITrans;
     }
 

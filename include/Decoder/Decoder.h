@@ -41,6 +41,7 @@ extern "C" {
 }
 #include "HFDecoder.h"
 #include "LLDecoder.h"
+#include "AlphaDecoder.h"
 #include "Utils.h"
 //#include "SubPic.h"
 #include "Timer.h"
@@ -49,12 +50,13 @@ namespace HFM {
     class Decoder {
     public:
         Decoder() = delete;
-        Decoder(uint32_t bitDepth, std::string decFile, std::string decLLFile, const std::string& bitstreamFile, uint32_t intraPeriod);
+        Decoder(uint32_t bitDepth, std::string decFile, std::string decLLFile, std::string decAlphaFile, const std::string& bitstreamFile, uint32_t intraPeriod);
         ~Decoder();
         void ParseSeqPicHeaderInfo(int frameIdx, Bitstream* bitstream);
         void ParseSeqHeaderInfo(Bitstream* bitstream);
         void ParsePicHeaderInfo(Bitstream* bitstream);
         void RenderingInformation(Bitstream* bitstream);
+        void ParseSubPicHeaderInfo(Bitstream* bitstream, int subPicIndex, uint32_t alphaFlag);
         void Decode(uint32_t currFrame, long long& totalBit, long long& cabacBit);
         void SetSubPic(std::shared_ptr<SubPicDec> subPicDec);
         Bitstream bitstream_;
@@ -69,14 +71,17 @@ namespace HFM {
         uint32_t bitDepth_{10};
         std::string decFile_;
         std::string decLLFile_;
+        std::string decAlphaFile_;
         std::ofstream decFileHandle_;
         std::ofstream decLLFileHandle_;
+        std::ofstream decAlphaFileHandle_;
         std::vector<std::pair<uint32_t, uint32_t>> picWHRaw_{};
         std::vector<std::pair<uint32_t, uint32_t>> picWHRawLL_{};
         std::array<ImgBufSize, LUMA_CHROMA> recPicSize_{};
         std::shared_ptr<SubPicDec> subPicDec_;
         SharedBufferStorage decPicBuffer_;
         SharedBufferStorage decPicLLBuffer_;
+        SharedBufferStorage decPicAlphaBuffer_;
         SharedBufferStorage refPicLLBuffer_;
         SeqPicHeaderInfo seqPicHeaderInfo_{};
         std::vector<SubpicSyntaxInfo> subpicSyntaxInfo_;

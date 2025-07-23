@@ -28,62 +28,35 @@
 
 * ====================================================================================================================
 */
-#ifndef HF_DECODER_ENTROPY_H
-#define HF_DECODER_ENTROPY_H
+#ifndef ALPHA_DECODER_H
+#define ALPHA_DECODER_H
+
+#include "FrameBuffer.h"
+#include <cmath>
 extern "C" {
 #include "cabac.h"
 #include "vlc.h"
 #include "biaridecod.h"
 }
-#include "FrameBuffer.h"
-#include <cstdint>
-#include <vector>
+typedef unsigned char s8;
 
 namespace HFM {
-
-    typedef struct {
-        uint8_t bandIdx;
-        uint8_t colorComponent;
-        int* leftCoefMax;
-        uint8_t transformType;
-    } EncDecBlockParams;
-
-    typedef struct {
-        uint8_t bandIdx;
-        uint8_t colorComponent;
-        int leftCoefMax[9];
-        int curBlockSize;
-        uint8_t transformType;
-    } EncDecBlockGroupParams;
-
-    class HFDecoderEntropy {
+    class AlphaDecoder {
     public:
-        HFDecoderEntropy();
-        ~HFDecoderEntropy();
-        void Set(Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo);
-        int HFEntropyFlag(BiContextTypePtr pBinCtx);
-        void HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t componentShiftX);
-        void HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams);
-        void HFEntropyCoeffGroup(uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
-        void HFEntropyDecode(uint32_t qpDeltaEnable, uint32_t hfTransformSkipEnable, std::vector<int32_t>& residual);
-        void HFEntropyDone();
-        inline int ReadVLCTable0();
-        inline int ReadVLCTable1();
-        inline int ReadVLCTable2();
-        inline int ReadVLCTable3();
-        inline void HFDecPattern0001(int* resSubBlock, int patternIdx);
-        
-        EncDecBlockGroupParams bgParams_;
-        //FrameBuffer residual_;
-        uint32_t cbf_;
-        int32_t qpDelta;
+        AlphaDecoder() {};
+        ~AlphaDecoder() {};
+        void Set(int width, int height, SharedFrameBuffer alphaBuffer, uint32_t alpha16bitFlag, Bitstream* bitstream, SubpicSyntaxInfo* subpicSyntaxInfo);
+        void AlphaDecode();
+        int ReadDiff();
+        int ReadRunlength();
+
     private:
-        Bitstream bitstreamCabacHf_;
-        Bitstream bitstreamVlcHf_;
-        DecodingEnvironment de_;
-        HighBandInfoContexts highBandCtx_;
-        unsigned char blocksNotAllZero[4];
+        int ReadKGolo(int k);
+        int picWidth_;
+        int picHeight_;
+        uint32_t alpha16bitFlag_;
+        SharedFrameBuffer alphaBuffer_;
+        Bitstream bitstreamVlcAlpha_;
     };
 }
-
-#endif // HF_ENCODER_ENTROPY_H
+#endif

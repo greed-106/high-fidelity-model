@@ -39,6 +39,22 @@ namespace HFM {
     using Pel = int32_t;
     using PelStorage = int16_t;
 
+    typedef struct AlphaInput {
+        uint32_t inputAlphaFlag;
+        uint32_t inputAlpha16bitFlag;
+        std::string inputAlphaFile;
+    } AlphaInput;
+
+    typedef struct QPGroup {
+        int32_t qp;
+        int32_t pFrameQpOffset;
+        int32_t cbQpOffset;
+        int32_t crQpOffset;
+        int32_t hlQpOffset;
+        int32_t lhQpOffset;
+        int32_t hhQpOffset;
+    } QPGroup;
+
     enum class PixelFormat {
         YUV444P10LE,
         YUV422P10LE,
@@ -49,9 +65,12 @@ namespace HFM {
         Y = 0,
         U,
         V,
+        A,
+        N_YUV_COMP = A,
         N_COLOR_COMP
     };
-    static const ColorComp COLORS[] = {Y, U, V};
+    static const ColorComp COLORS[] = {Y, U, V, A};
+    static const ColorComp YUVS[] = {Y, U, V};
     static const std::string COLORS_STR[] = {"Y", "U", "V"};
 
     enum SubBandType {
@@ -121,8 +140,7 @@ namespace HFM {
         INTRA_DC,
         INTER_PRED = INTRA_DC,
         INTRA_HOR,
-        INTRA_PLANAR,
-        INTRA_CCLM= INTRA_PLANAR,
+        INTRA_CCLM,
         N_PRED_PRED
     };
 

@@ -56,6 +56,18 @@ static inline void getbyte(DecodingEnvironmentPtr dep)
     }
 }
 
+static inline int getbit(DecodingEnvironmentPtr dep, int bit)
+{
+    int i;
+    for (i = 0; i < bit; i++) {
+        if (--dep->DbitsNeeded < 0) {
+            dep->Dbuffer = dep->Dcodestrm[(*dep->Dcodestrm_len)++];
+            dep->DbitsNeeded = 7;
+        }
+
+        dep->Dvalue = (dep->Dvalue << 1) | ((dep->Dbuffer >> dep->DbitsNeeded) & 0x01);
+    }
+}
 /*!
  ************************************************************************
  * \brief
@@ -71,11 +83,15 @@ void arideco_start_decoding(DecodingEnvironmentPtr dep, unsigned char *code_buff
 
   dep->Drange = 0x1FF;
   dep->Dvalue = 0;
+  dep->DbitsNeeded = 0;
+  getbit(dep, 9);
+  /*
   dep->DbitsNeeded = 8;
   getbyte(dep);
   getbyte(dep);
   dep->Dvalue <<= 1;
   dep->DbitsNeeded = -7;
+  */
 }
 
 int ace_get_shift(int v)
@@ -99,7 +115,42 @@ static const uint16_t cwr2LGS[10] = { 427, 427, 427, 197, 95, 46, 23, 12, 6, 3 }
 *    the decoded symbol
 ************************************************************************
 */
-unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct )
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
+{
+    uint16_t bit = bi_ct->MPS;
+    uint16_t prob_lps = bi_ct->prob_lps;
+    uint32_t rLPS = LBAC_GET_LG_PMPS(prob_lps);
+    uint32_t rMPS = dep->Drange - rLPS;
+    int s_flag = rMPS < LBAC_QUAR_HALF_PROB;
+    rMPS |= 0x100;
+    
+    if (s_flag) {
+        getbit(dep, 1);
+    }
+    if (dep->Dvalue < rMPS) { // MPS
+        dep->Drange = rMPS;
+        prob_lps -= (prob_lps >> LBAC_UPDATE_CWR) + (prob_lps >> (LBAC_UPDATE_CWR + 2));
+    }
+    else { // LPS
+        bit = 1 - bit;
+        rLPS = (dep->Drange << s_flag) - rMPS;
+        int shift = ace_get_shift(rLPS);
+        dep->Drange = rLPS << shift;
+        dep->Dvalue = dep->Dvalue - rMPS;
+        getbit(dep, shift);
+        prob_lps += cwr2LGS[LBAC_UPDATE_CWR] >> (11 - LBAC_PROB_BITS);
+        if (prob_lps > LBAC_HALF_PROB) {
+            prob_lps = LBAC_MAX_PROB - prob_lps;
+            bi_ct->MPS = !bi_ct->MPS;
+        }
+    }
+
+    bi_ct->prob_lps = prob_lps;
+
+    return bit;
+}
+
+unsigned int biari_decode_symbol_v2(DecodingEnvironment *dep, BiContextType *bi_ct )
 {
     uint16_t bit = bi_ct->MPS;
     uint16_t prob_lps = bi_ct->prob_lps;
@@ -147,7 +198,33 @@ unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct 
  *    the decoded symbol
  ************************************************************************
  */
+
 unsigned int biari_decode_final(DecodingEnvironmentPtr dep)
+{
+    uint8_t s_flag = dep->Drange - 1 < LBAC_QUAR_HALF_PROB;
+    uint32_t rMPS = (dep->Drange - 1) | 0x100;
+    
+    if (s_flag) {
+        getbit(dep, 1);
+    }
+
+    if (dep->Dvalue < rMPS) { // MPS
+        dep->Drange = rMPS;
+        return 0;
+    }
+    else { // LPS
+        uint32_t rLPS = s_flag ? ((dep->Drange << 1) - rMPS) : 1;
+        int shift = ace_get_shift(rLPS);
+        dep->Drange = rLPS << shift;
+        dep->Dvalue = (dep->Dvalue - rMPS) ;
+        getbit(dep,  shift);
+
+        return 1;
+    }
+}
+
+
+unsigned int biari_decode_final_v2(DecodingEnvironmentPtr dep)
 {
     uint8_t s_flag = dep->Drange - 1 < LBAC_QUAR_HALF_PROB;
     uint32_t rMPS = (dep->Drange - 1) | 0x100;

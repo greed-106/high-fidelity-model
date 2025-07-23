@@ -48,8 +48,12 @@ struct SeqPicHeader
     uint32_t subPicHeight;
     uint32_t bitDepth;
     uint32_t pixelFormat;
+    uint32_t alphaFlag;
+    uint32_t alpha16bitFlag;
+    uint32_t alphaMapCodeMode;
     uint32_t qpDeltaEnable;
     uint32_t hfTransformSkip;
+    uint32_t cclmEnable;
     uint32_t picSize;
     uint32_t frameType;
     int numOfSubpic;
@@ -69,6 +73,7 @@ struct SubpicSyntax
     uint32_t subpicLlCabacLength;
     uint32_t subpicLlVlcLength;
     uint32_t subpicHfCabacLength;
+    uint32_t subpicHfVlcLength;
 
     uint32_t subpicWidth;
     uint32_t subpicHeight;

@@ -124,10 +124,10 @@ namespace HFM {
             LOGE("%s\n", "image A size != image B size");
         }
 
-        double sum[N_COLOR_COMP] {0.0};
-        double mse[N_COLOR_COMP] {0.0};
+        double sum[N_YUV_COMP] {0.0};
+        double mse[N_YUV_COMP] {0.0};
         std::array<double, N_COLOR_COMP> psnr {0.0};
-        for (auto color : COLORS) {
+        for (auto color : YUVS) {
             uint32_t width = color == Y ? sizeA[LUMA].w : sizeA[CHROMA].w;
             uint32_t height = color == Y ? sizeA[LUMA].h : sizeA[CHROMA].h;
             uint32_t strideA = color == Y ? sizeA[LUMA].strideW : sizeA[CHROMA].strideW;

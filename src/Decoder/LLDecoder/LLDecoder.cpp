@@ -29,6 +29,7 @@
 * ====================================================================================================================
 */
 #include <memory>
+#include <cassert>
 #include "LLDecoder.h"
 
 namespace HFM {
@@ -48,7 +49,11 @@ namespace HFM {
 
     void LLDecoder::GetPuWH(uint8_t puSize) {
         if (isChroma_ != LUMA) {
-            puWidth_ = 4; puHeight_ = 8;
+            if (pixelFormat_ == PixelFormat::YUV444P10LE) {
+                puWidth_ = 8; puHeight_ = 8;
+            } else {
+                puWidth_ = 4; puHeight_ = 8;
+            }
         } else if (puSize == LUMA_PU_4x4) {
             puWidth_ = 4; puHeight_ = 4;
         } else {
@@ -81,7 +86,9 @@ namespace HFM {
         auto llDecoderEntropy = std::make_shared<LLDecoderEntropy>(bitstream, subpicSyntaxInfo);
         int maxWidthMb = (llBandWidth_ + MB_SIZE - 1) / MB_SIZE;
         int maxHeightMb = (llBandHeight_ + MB_SIZE - 1) / MB_SIZE;
+        pixelFormat_ = (PixelFormat)seqPicHeaderInfo->pixelFormat;
 
+        uint32_t componentShiftX;
         uint8_t refQP[3] = {0};
         for (uint32_t mbY = 0; mbY < maxHeightMb; mbY++) {
             for (uint32_t mbX = 0; mbX < maxWidthMb; mbX++) {
@@ -89,7 +96,7 @@ namespace HFM {
                     llDecoderEntropy->mbEntropyInfo_.leftPuMvdX = 0;
                     llDecoderEntropy->mbEntropyInfo_.leftPuMvdY = 0;
                 }
-                llDecoderEntropy->LLEntropyMbInfo(seqPicHeaderInfo->frameType, seqPicHeaderInfo->qpDeltaEnable);
+                llDecoderEntropy->LLEntropyMbInfo(seqPicHeaderInfo->frameType, seqPicHeaderInfo->qpDeltaEnable, seqPicHeaderInfo->cclmEnable);
                 auto info = llDecoderEntropy->mbEntropyInfo_;
                 uint8_t intraPredMode;
                 uint8_t puSize = info.tuSizeLuma;
@@ -116,11 +123,16 @@ namespace HFM {
                     //P MB
                     MotionVector mv = MotionVector(info.leftPuMvdX, info.leftPuMvdY);
                     for (isChroma_ = LUMA; isChroma_ < LUMA_CHROMA; isChroma_++) {
-                        lineWidth_ = llBandWidth_ >> isChroma_;
+                        if (isChroma_ && pixelFormat_ == PixelFormat::YUV422P10LE) {
+                            componentShiftX = 1;
+                        } else {
+                            componentShiftX = 0;
+                        }
+                        lineWidth_ = llBandWidth_ >> componentShiftX;
                         GetPuWH(info.tuSizeLuma);
 
                         for (colorComponent_ = isChroma_; colorComponent_ <= ((isChroma_ == LUMA) ? Y : V); colorComponent_++) {
-                            puPixelIndex_ = (mbY * MB_SIZE) * lineWidth_ + mbX * (MB_SIZE >> isChroma_);
+                            puPixelIndex_ = (mbY * MB_SIZE) * lineWidth_ + mbX * (MB_SIZE >> componentShiftX);
                             llPuInter_->Set(colorComponent_, puWidth_, puHeight_);
                             llPuInter_->GeRefWindow((*llBandPicRef_)[colorComponent_], lineWidth_, colorComponent_, mbY, mbX, mbY == 0, mbY == maxHeightMb - 1, mbX == 0, mbX == maxWidthMb - 1);
                             llPuInter_->InterPred(mv, puPred_, colorComponent_);
@@ -128,7 +140,7 @@ namespace HFM {
                             if (info.interNoResidualFlag) {
                                 std::fill(coeff_.begin(), coeff_.end(), 0);
                             } else {
-                                llDecoderEntropy->LLEntropyCoeff(colorComponent_, coeff_);
+                                llDecoderEntropy->LLEntropyCoeff(pixelFormat_, colorComponent_, coeff_);
                             }
                             //IQIT
                             llPuRecon_->Set(puWidth_, puHeight_, puPixelIndex_, lineWidth_);
@@ -138,27 +150,32 @@ namespace HFM {
                 } else {
                     for (isChroma_ = LUMA; isChroma_ < LUMA_CHROMA; isChroma_++) {
                         intraPredMode = (isChroma_ == LUMA) ? info.PredmodeLuma : info.PredmodeChroma;
-                        lineWidth_ = llBandWidth_ >> isChroma_;
+                        if (isChroma_ && pixelFormat_ == PixelFormat::YUV422P10LE) {
+                            componentShiftX = 1;
+                        } else {
+                            componentShiftX = 0;
+                        }
+                        lineWidth_ = llBandWidth_ >> componentShiftX;
                         GetPuWH(info.tuSizeLuma);
 
                         for (colorComponent_ = isChroma_; colorComponent_ <= ((isChroma_ == LUMA) ? Y : V); colorComponent_++) {
                             for (puY_ = 0; puY_ < ((!isChroma_ && info.tuSizeLuma == LUMA_PU_4x4) ? 2 : 1); puY_++) {
                                 for (puX_ = 0; puX_ < ((!isChroma_ && info.tuSizeLuma == LUMA_PU_4x4) ? 2 : 1); puX_++) {
-                                    puPixelIndex_ = (mbY * MB_SIZE + puY_ * (MB_SIZE >> 1)) * lineWidth_ + mbX * (MB_SIZE >> isChroma_) + puX_ * (MB_SIZE >> 1);
+                                    puPixelIndex_ = (mbY * MB_SIZE + puY_ * (MB_SIZE >> 1)) * lineWidth_ + mbX * (MB_SIZE >> componentShiftX) + puX_ * (MB_SIZE >> 1);
                                     if (isChroma_ == CHROMA && intraPredMode == INTRA_CCLM) {
-                                        llPuCclm_->Set(mbX, mbY, colorComponent_);
-                                        uint32_t puYPixelIndex = mbY * MB_SIZE * (lineWidth_ << 1) + mbX * MB_SIZE;
+                                        llPuCclm_->Set(puWidth_, puHeight_, mbX, mbY, colorComponent_);
+                                        uint32_t puYPixelIndex = mbY * MB_SIZE * (lineWidth_ << componentShiftX) + mbX * MB_SIZE;
                                         if (colorComponent_ == U) {
-                                            llPuCclm_->GetCclmScale(llBandPic_->at(Y), llBandPic_->at(U), llBandPic_->at(V), puYPixelIndex, lineWidth_ << 1, puPixelIndex_, lineWidth_);
+                                            llPuCclm_->GetCclmScale(llBandPic_->at(Y), llBandPic_->at(U), llBandPic_->at(V), puYPixelIndex, lineWidth_ << componentShiftX, puPixelIndex_, lineWidth_);
                                         }
-                                        llPuCclm_->ComLLCclmPred(llBandPic_->at(Y), puYPixelIndex, lineWidth_ << 1, puPred_);
+                                        llPuCclm_->ComLLCclmPred(llBandPic_->at(Y), puYPixelIndex, lineWidth_ << componentShiftX, puPred_);
                                     } else {
                                         llPuIntra_->Set(puSize, intraPredMode, isChroma_, puX_, puY_, puWidth_, puHeight_, mbX, mbY, puPixelIndex_, lineWidth_);
                                         llPuIntra_->GetPuNbr(llBandPic_->at(colorComponent_));
                                         llPuIntra_->ComLLPred(puPred_);
                                     }
 
-                                    llDecoderEntropy->LLEntropyCoeff(colorComponent_, coeff_);
+                                    llDecoderEntropy->LLEntropyCoeff(pixelFormat_, colorComponent_, coeff_);
                                     llPuRecon_->Set(puWidth_, puHeight_, puPixelIndex_, lineWidth_);
                                     llPuRecon_->ComLLRecon(coeff_, puPred_, llBandPic_->at(colorComponent_), mbQp_[colorComponent_], intraPredMode);
                                 }
@@ -168,6 +185,7 @@ namespace HFM {
                 }
             }
         }
+        llDecoderEntropy->LLEntropyDone();
     }
 
 }

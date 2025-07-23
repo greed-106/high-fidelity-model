@@ -61,6 +61,7 @@ namespace HFM {
         std::shared_ptr<IQuant>llIQuant_;
         std::shared_ptr<LLPuRecon>llPuRecon_;
 
+        PixelFormat pixelFormat_;
         uint32_t puPixelIndex_;
         FrameBuffer puPred_;
         uint32_t llBandWidth_;

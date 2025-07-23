@@ -51,6 +51,7 @@ typedef struct syntaxelement_enc
 extern int write_se_v (int value, Bitstream *bitstream);
 extern int write_u_v  (int n, int value, Bitstream *bitstream);
 void writeUVLC2buffer(SyntaxElement *se, Bitstream *currStream);
+void BitstreamClean(Bitstream *bitstream, int logMemSize);
 void BitstreamInit(Bitstream *bitstream, int logMemSize);
 void BitstreamRelease(Bitstream *bitstream);
 void BitstreamWrite(int i, Bitstream *bitstream, char* bitstreamFile);

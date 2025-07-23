@@ -52,11 +52,12 @@ struct Arguments: public argparse::Args {
     std::string& bitstream = kwarg("b,Bitstream", "input bitstream file");
     std::string& decFile = kwarg("o,DecFile", "output image file");
     std::string& decLLFile = kwarg("DecLLFile", "output LL sub-band image file").set_default("");
+    std::string& decAlphaFile = kwarg("DecAlphaFile", "output Alpha file").set_default("Alpha.yuv");
 };
 
 SeqPicHeaderInfo ParsePartialHeaderInfo(const std::string& bitstreamFile)
 {
-    const uint32_t REQ_HEADER_BYTES = 10;
+    const uint32_t REQ_HEADER_BYTES = 11;
     byte streamBuffer[REQ_HEADER_BYTES];
     Bitstream bitstream{0};
     bitstream.bitstream_length = REQ_HEADER_BYTES;
@@ -71,14 +72,14 @@ SeqPicHeaderInfo ParsePartialHeaderInfo(const std::string& bitstreamFile)
     SeqPicHeaderInfo seqPicHeaderInfo{};
     seqPicHeaderInfo.profileIdc = read_u_v(8, &bitstream);
     seqPicHeaderInfo.levelIdc = read_u_v(8, &bitstream);
-    seqPicHeaderInfo.frameCount = read_u_v(2, &bitstream) + 1;
+    seqPicHeaderInfo.frameCount = read_u_v(8, &bitstream) + 1;
     seqPicHeaderInfo.frameRate = read_u_v(8, &bitstream);
     seqPicHeaderInfo.width = read_u_v(16, &bitstream);
     seqPicHeaderInfo.height = read_u_v(16, &bitstream);
-    seqPicHeaderInfo.subPicWidth = (read_u_v(3, &bitstream) + 2) << 7;
-    seqPicHeaderInfo.subPicHeight = (read_u_v(6, &bitstream) + 2) << 7;
+    seqPicHeaderInfo.subPicWidth = (read_u_v(8, &bitstream) + 2) << 7;
+    seqPicHeaderInfo.subPicHeight = (read_u_v(8, &bitstream) + 1) << 7;
     seqPicHeaderInfo.bitDepth = read_u_v(4, &bitstream) + 8;
-    seqPicHeaderInfo.pixelFormat = read_u_v(2, &bitstream); // 0: YUV444, 1: YUV422, 2: YUV420
+    seqPicHeaderInfo.pixelFormat = read_u_v(4, &bitstream); // 0: YUV444, 1: YUV422, 2: YUV420
     if (headerStream.is_open()) {
         headerStream.close();
     }
@@ -101,7 +102,7 @@ int main(int argc, const char** argv)
     auto pixelFormat = static_cast<PixelFormat>(headInfo.pixelFormat);
     auto subPic = std::make_shared<SubPicDec>(pixelFormat, headInfo.width, headInfo.height,
                                               headInfo.subPicWidth, headInfo.subPicHeight);
-    auto decoder = std::make_shared<Decoder>(headInfo.bitDepth, args.decFile, args.decLLFile, args.bitstream, headInfo.frameCount);
+    auto decoder = std::make_shared<Decoder>(headInfo.bitDepth, args.decFile, args.decLLFile, args.decAlphaFile, args.bitstream, headInfo.frameCount);
     long long totalBit=0, cabacBit=0;
     decoder->SetSubPic(subPic);
     for (int frameIdx = 0; decoder->curBitstreamPos_ < decoder->bitstreamLength_; ++frameIdx) {

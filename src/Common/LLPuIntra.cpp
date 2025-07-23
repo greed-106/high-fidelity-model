@@ -151,22 +151,6 @@ namespace HFM {
         }
     }
 
-    void LLPuIntra::IntraPredPlanar(std::vector<int32_t>& intraPred) {
-        if (!leftAvail_ || !upAvail_) {
-            SetDefault(intraPred);
-            return;
-        }
-        uint8_t index = 0;
-        for (uint8_t yPos = 0; yPos < puHeight_; ++yPos) {
-            for (uint8_t xPos = 0; xPos < puWidth_; ++xPos) {
-                intraPred[index + xPos] = ((*Nbr_[MB_NBR_LEFT])[yPos] + (*Nbr_[MB_NBR_UP])[xPos]+1)>>1;
-            }
-            index += puWidth_;
-        }
-    }
-
-
-
     void LLPuIntra::ComLLPred(std::vector<int32_t>& intraPred) {
         switch (intraPredMode_) {
         case (INTRA_VER): {
@@ -179,15 +163,6 @@ namespace HFM {
         }
         case (INTRA_HOR): {
             IntraPredHor(intraPred);
-            break;
-        }
-        case (INTRA_PLANAR): {
-            if (isChroma_ == LUMA) {
-                IntraPredPlanar(intraPred);
-            } else {
-                //IntraPredCCLM(intraPred);
-                exit(-1);
-            }
             break;
         }
         default: {

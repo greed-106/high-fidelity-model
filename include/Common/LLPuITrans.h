@@ -36,7 +36,6 @@
 #include "Const.h"
 #include "Utils.h"
 #include "Table.h"
-#include "Tool.h"
 
 namespace HFM {
 

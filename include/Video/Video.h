@@ -41,7 +41,7 @@ namespace HFM {
     class Video {
     public:
         Video() = delete;
-        Video(PixelFormat pixelFormat, uint32_t frameCount, uint32_t width, uint32_t height, const std::string& inputFilePath);
+        Video(PixelFormat pixelFormat, uint32_t frameCount, uint32_t width, uint32_t height, const std::string& inputFilePath, AlphaInput alphaInput);
         ~Video();
         SharedBufferStorage GetCurrFrame();
         SharedBufferStorage MoveToNextFrame();
@@ -51,7 +51,11 @@ namespace HFM {
         void InitFrameBuffer();
         void ReadOneFrame();
         void ReadOnePlane(PelStorage*& currPos, ImgBufSize size);
+        void ReadOneAlphaPlane(PelStorage*& currPos, ImgBufSize size);
         std::ifstream inputVideo_;
+        uint32_t inputAlphaFlag_;
+        uint32_t inputAlpha16bitFlag_;
+        std::ifstream inputAlphaFile_;
         PixelFormat pixelFormat_;
         uint32_t frameCount_{0};
         uint32_t formatShiftW_{0};

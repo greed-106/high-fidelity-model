@@ -37,13 +37,12 @@
 #include "Timer.h"
 #include "Utils.h"
 #include "Wavelet.h"
-#include "Tool.h"
 
 namespace HFM {
     SubPicEnc::SubPicEnc(PixelFormat pixelFormat, uint32_t picWidth, uint32_t picHeight, uint32_t subPicWidth, uint32_t subPicHeight) {
         SubPic::Init(pixelFormat, picWidth, picHeight, subPicWidth, subPicHeight);
-        subBandPixels_[Y] = (subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH) >> 2;
-        subBandPixels_[U] = (subPicSize_[CHROMA].strideW * subPicSize_[CHROMA].strideH) >> 2;
+        subBandPixels_[Y] = (subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH * 2) >> 2;
+        subBandPixels_[U] = (subPicSize_[CHROMA].strideW * subPicSize_[CHROMA].strideH * 2) >> 2;
         subBandPixels_[V] = subBandPixels_[U];
         for (const auto & band : SUB_BANDS) {
             for (const auto & subBandPixel : subBandPixels_) {
@@ -54,8 +53,9 @@ namespace HFM {
                 }
             }
         }
+        alphaBuffer_ = std::make_shared<BufferStorage>(subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH * 2, 0);
         dwtRowBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW, 0);
-        dwtTransTmpBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH, 0);
+        dwtTransTmpBuffer_ = std::make_shared<FrameBuffer>(subPicSize_[LUMA].strideW * subPicSize_[LUMA].strideH * 2, 0);
     }
 
     void SubPicEnc::DWT(SubPicInfoMap& subPicInfo) {
@@ -63,7 +63,7 @@ namespace HFM {
         //std::string dwtDesc{"dwt for sub-pic: " + std::to_string(subPicInfo[Y].id)};
         //timer.Start(dwtDesc);
         // Md5Printer md5Printer;
-        for (const auto & color : COLORS) {
+        for (const auto & color : YUVS) {
             auto info = subPicInfo[color];
             auto currPos = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
             // hor-trans
@@ -73,12 +73,9 @@ namespace HFM {
                 for (int w = 0; w < info.w; ++w) {
                     dwtRowBuffer_->at(w) = static_cast<Pel>(currPos[w]) << DWT_SHIFT;
                 }
-#if DWT_97
                 if (color == Y) {
                     IntConvDWT97(dwtRowBuffer_->data(), info.w, horBufL, horBufH);
-                } else 
-#endif
-                {
+                } else {
                     DWT53(dwtRowBuffer_->data(), info.w, horBufL, horBufH);
                 }
                 currPos += info.strideW;
@@ -124,8 +121,21 @@ namespace HFM {
         }
     }
 
+    void SubPicEnc::GetAlpha(SubPicInfoMap& subPicInfo) {
+            auto info = subPicInfo[A];
+            auto currPos = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
+            PelStorage* alphaPtr = alphaBuffer_->data();
+            for (int h = 0; h < info.h; ++h) {
+                for (int w = 0; w < info.w; ++w) {
+                    alphaPtr[w] = currPos[w];
+                }
+                currPos += info.strideW;
+                alphaPtr += info.w;
+            }
+    }
+
     void SubPicEnc::SetLLReference(SubPicInfoMap& subPicLLInfoRef) {
-        for (const auto & color : COLORS) {
+        for (const auto & color : YUVS) {
             auto info = subPicLLInfoRef[color];
             auto currPos = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
 
@@ -152,7 +162,7 @@ namespace HFM {
         std::string hStr = std::to_string(subPicInfo[Y].h);
         std::string idStr = std::to_string(subPicInfo[Y].id);
         dwtFile.open(path + "/dwt_subpic_" + idStr + "_" + wStr + "x" + hStr + "_422_16bits.yuv", std::ofstream::binary | std::ofstream::trunc);
-        for (auto & color : COLORS) {
+        for (auto & color : YUVS) {
             PelStorage element;
             uint32_t subBandHeight = subPicInfo[color].h >> 1;
             uint32_t subBandWidth = subPicInfo[color].w >> 1;

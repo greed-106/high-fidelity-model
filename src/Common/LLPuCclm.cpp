@@ -37,7 +37,9 @@ namespace HFM {
     LLPuCclm::~LLPuCclm() {
     }
 
-    void LLPuCclm::Set(uint32_t mbX, uint32_t mbY, uint8_t colorComponent) {
+    void LLPuCclm::Set(uint32_t puWidth, uint32_t puHeight, uint32_t mbX, uint32_t mbY, uint8_t colorComponent) {
+        puWidth_ = puWidth;
+        puHeight_ = puHeight;
         leftAvail_ = mbX != 0;
         upAvail_ = mbY != 0;
         colorComponent_ = colorComponent;
@@ -63,7 +65,11 @@ namespace HFM {
             curP.u = (llBandPicURec->at(puUVPixelIndex - 1) + llBandPicURec->at(puUVPixelIndex - lineUVWidth)) >> 1;
             curP.v = (llBandPicVRec->at(puUVPixelIndex - 1) + llBandPicVRec->at(puUVPixelIndex - lineUVWidth)) >> 1;
             CclmNbr_.push_back(curP);
-            PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 6, puYPixelIndex - lineYWidth + 7, true, puUVPixelIndex - lineUVWidth + 3);
+            if (puWidth_==8){
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 7, 0, false, puUVPixelIndex - lineUVWidth + 7);
+            } else {
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 6, puYPixelIndex - lineYWidth + 7, true, puUVPixelIndex - lineUVWidth + 3);
+            }
             PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - 1 + 7 * lineYWidth, 0, false, puUVPixelIndex - 1 + 7 * lineUVWidth);
         } else if (leftAvail_) {
             PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - 1, 0, false, puUVPixelIndex - 1);    
@@ -71,9 +77,15 @@ namespace HFM {
             PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - 1 + 7 * lineYWidth, 0, false, puUVPixelIndex - 1 + 7 * lineUVWidth);
 
         } else {
-            PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth, puYPixelIndex - lineYWidth + 1, true, puUVPixelIndex - lineUVWidth);
-            PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 4, puYPixelIndex - lineYWidth + 5, true, puUVPixelIndex - lineUVWidth+2);
-            PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 6, puYPixelIndex - lineYWidth + 7, true, puUVPixelIndex - lineUVWidth + 3);
+            if (puWidth_ == 8) {
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth, 0, false, puUVPixelIndex - lineUVWidth);
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 4, 0, false, puUVPixelIndex - lineUVWidth + 4);
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 7, 0, false, puUVPixelIndex - lineUVWidth + 7);
+            } else {
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth, puYPixelIndex - lineYWidth + 1, true, puUVPixelIndex - lineUVWidth);
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 4, puYPixelIndex - lineYWidth + 5, true, puUVPixelIndex - lineUVWidth + 2);
+                PushNbr(llBandPicYRec, llBandPicURec, llBandPicVRec, puYPixelIndex - lineYWidth + 6, puYPixelIndex - lineYWidth + 7, true, puUVPixelIndex - lineUVWidth + 3);
+            }
         }
 
         std::sort(CclmNbr_.begin(), CclmNbr_.end());
@@ -96,15 +108,15 @@ namespace HFM {
 
         shift1_ = CCLM_SHIFT1;
         uint32_t shift2 = CCLM_SHIFT2;
-        int32_t maxDiffVal = ((1008) << (shift1_ - 10)) - 1;
+        int32_t maxDiffVal = 1007;
         int32_t minDiffVal = 0;
-        Clip<int32_t, int32_t>(diffY_, diffY_, minDiffVal, maxDiffVal);
+        int32_t disScale = diffY_ >> (shift1_ - 10);
+        Clip<int32_t, int32_t>(disScale, disScale, minDiffVal, maxDiffVal);
         maxDiffVal = (1 << MAX_CCLM_DIFF_UV_BIT) - 1;
         minDiffVal = -(1 << MAX_CCLM_DIFF_UV_BIT);
         Clip<int32_t, int32_t>(diffU_, diffU_, minDiffVal, maxDiffVal);
         Clip<int32_t, int32_t>(diffV_, diffV_, minDiffVal, maxDiffVal);
 
-        int32_t disScale = diffY_ >> (shift1_ - 10);
         int32_t table = 0;
         int32_t sum = 32;
         while (disScale >= sum - 16) {
@@ -123,9 +135,8 @@ namespace HFM {
     }
 
     void LLPuCclm::ComLLCclmPred(SharedFrameBuffer llBandPicYRec, uint32_t puYPixelIndex, uint32_t lineYWidth, std::vector<int32_t>& intraPred) {
-        uint8_t puWidth = 4, puHeight = 8;
         if ((!leftAvail_) && (!upAvail_)) {
-            for (uint8_t index = 0; index < puWidth*puHeight; index++) {
+            for (uint8_t index = 0; index < puWidth_*puHeight_; index++) {
                 intraPred[index] = INTRA_DEFAULT;
             }
             return;
@@ -133,14 +144,19 @@ namespace HFM {
         int maxPelVal = (1 << MAX_CCLM_PRED_BIT) - 1;
         int minPelVal = 0;
         auto ptrYRec = &(llBandPicYRec->at(puYPixelIndex));
-        for (uint8_t h = 0; h < puHeight; ++h) {
-            for (uint8_t w = 0; w < puWidth; ++w) {
-                int32_t yMean = (ptrYRec[2 * w] + ptrYRec[2 * w + 1]) >> 1;
+        for (uint8_t h = 0; h < puHeight_; ++h) {
+            for (uint8_t w = 0; w < puWidth_; ++w) {
+                int32_t yMean;
+                if (puWidth_ == 8) {
+                    yMean = ptrYRec[w];
+                } else {
+                    yMean = (ptrYRec[2 * w] + ptrYRec[2 * w + 1]) >> 1;
+                }
                 int32_t tmpPel = (yMean - keyY_) * slopeScale_[colorComponent_-1];
                 tmpPel >>= (shift1_);
                 tmpPel += keyUV_[colorComponent_ - 1];
                 Clip<int32_t,int32_t>(tmpPel, tmpPel, minPelVal, maxPelVal);
-                intraPred[h*puWidth+w] = tmpPel;
+                intraPred[h*puWidth_+w] = tmpPel;
             }
             ptrYRec += lineYWidth;
         }

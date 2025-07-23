@@ -53,7 +53,7 @@ extern const byte* pos2ctx_map_int [];
 extern const byte* pos2ctx_last    [];
 
 int enc_writePuSize_CABAC(EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx, int pu_size);
-int enc_writePreMode_CABAC(EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx,int pred_mode, int component);
+int enc_writePredMode_CABAC(EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx,int pred_mode, int component, uint32_t cclm_enable);
 int enc_writeCoeff4x4_CABAC(Bitstream *bitstream, EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx, pel* coeff, int plane, int pred_mode);
 int enc_writeCoeff8x8_CABAC(Bitstream *bitstream, EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx, pel* coeff, int plane, int pred_mode);
 int enc_writeCoeff4x8_CABAC(Bitstream *bitstream, EncodingEnvironmentPtr eep_dp, TextureInfoContexts* tex_ctx, pel* coeff, int plane, int pred_mode);

@@ -37,7 +37,6 @@
 #include "BasicTypes.h"
 #include "Table.h"
 #include "Utils.h"
-#include "Tool.h"
 
 namespace HFM {
     class LLEncoderTrans {

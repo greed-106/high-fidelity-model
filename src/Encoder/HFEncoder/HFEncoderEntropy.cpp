@@ -32,7 +32,6 @@
 #include "HFEncoderEntropy.h"
 #include "BasicTypes.h"
 #include "Utils.h"
-#include "Tool.h"
 
 namespace HFM {
     HFEncoderEntropy::HFEncoderEntropy() {
@@ -272,9 +271,7 @@ namespace HFM {
 
     void HFEncoderEntropy::GetCabcaState() {
         eeState_ = *eep_;
-#if CABAC_HF
         cabacLenState= *eep_->Ecodestrm_len;
-#endif
         highBandCtxState_ = *highBandCtx_;
         eep_->cabac_encoding = 0;
         bits_ = 0;
@@ -282,27 +279,16 @@ namespace HFM {
 
     void HFEncoderEntropy::ResetCabcaState() {
         *eep_ = eeState_;
-#if CABAC_HF
         *eep_->Ecodestrm_len = cabacLenState;
-#endif
         *highBandCtx_ = highBandCtxState_;
         eep_->cabac_encoding = 1;
     }
 
     uint32_t HFEncoderEntropy::HFEntropyFlag(BiContextTypePtr pBinCtx, int value) {
-#if CABAC_HF
         int curr_len = arienco_bits_written(eep_);
         biari_encode_symbol(eep_, value, pBinCtx);
         int no_bits = arienco_bits_written(eep_) - curr_len;
         return no_bits;
-#else
-        if (eep_->cabac_encoding == 1) {
-            write_u_v(1, value, bitstream_);
-            return 1;
-        } else {
-            return 1;
-        }
-#endif
     }
 
     uint32_t HFEncoderEntropy::HFEntropyCoeffBlock(int blockIdx, int* residual, EncDecBlockParams* blockParams) {
@@ -419,15 +405,15 @@ namespace HFM {
         return no_bits;
     }
 
-    void HFEncoderEntropy::HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t transformType) {
+    void HFEncoderEntropy::HFEntropyCoeffGroupSet(int isLeftBoundaryMb, uint8_t bandIdx, uint8_t colorComponent, uint8_t componentShiftX, uint8_t transformType) {
         if (isLeftBoundaryMb)
             bgParams_.leftCoefMax[3 * (bandIdx - 1) + colorComponent] = {0};
         bgParams_.bandIdx = bandIdx - 1; //mapping
         bgParams_.colorComponent = colorComponent;
         if(colorComponent == Y)
             bgParams_.curBlockSize = 4;
-        else
-            bgParams_.curBlockSize = 2;
+        else 
+            bgParams_.curBlockSize = (4 >> componentShiftX);
         bgParams_.transformType = transformType;
     }
 

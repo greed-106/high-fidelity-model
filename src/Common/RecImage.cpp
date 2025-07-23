@@ -48,10 +48,34 @@ namespace HFM {
         std::string wStr = std::to_string(size[Y].first);
         std::string hStr = std::to_string(size[Y].second);
         auto recPicPtr = recPic->data();
-        for (auto & color : COLORS) {
+        for (auto & color : YUVS) {
             uint32_t pixels = size[color].first * size[color].second;
             recFileHandle.write((const char*)recPicPtr, pixels * sizeof(PelStorage));
             recPicPtr += pixels;
+        }
+        return Status::SUCCESS;
+    }
+
+    Status WriteRecAlphaPic(const SharedBufferStorage& recPic, uint32_t alpha16bitFlag,
+        const std::pair<uint32_t, uint32_t>& size,
+        std::ofstream& recFileHandle) {
+        if (!recFileHandle.is_open()) {
+            auto status = Status::INVALID_FILE_HANDLE;
+            LOGE("%s\n", GetStatusMsg(status));
+            return status;
+        }
+        std::string wStr = std::to_string(size.first);
+        std::string hStr = std::to_string(size.second);
+        auto recPicPtr = recPic->data();
+        uint32_t pixels = size.first * size.second;
+        if (alpha16bitFlag) {
+            recFileHandle.write((const char*)recPicPtr, pixels * sizeof(PelStorage));
+            recPicPtr += pixels;
+        } else {
+            for (int i = 0; i < pixels; i++) {
+                recFileHandle.write((const char*)recPicPtr, 1);
+                recPicPtr++;
+            }
         }
         return Status::SUCCESS;
     }
@@ -69,7 +93,7 @@ namespace HFM {
     void RecLLSubPic(SubPicInfoMap& subPicInfo, const std::vector<SharedFrameBuffer>& subBandLL,
         std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize, uint32_t bitDepth) {
         int32_t maxValue = (1 << bitDepth) - 1;
-        for (auto color : COLORS) {
+        for (auto color : YUVS) {
             auto info = subPicInfo[color];
             Pel* subBandLLPtr = subBandLL[color]->data();
             auto recLLPtr = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
@@ -84,10 +108,27 @@ namespace HFM {
         }
     }
 
+    void RecAlphaSubPic(SubPicInfoMap& subPicInfo, SharedFrameBuffer AlphaBuffer, std::pair<uint32_t, uint32_t> size, uint32_t bitDepth) {
+        int32_t maxValue = (1 << bitDepth) - 1;
+        std::pair<uint32_t, uint32_t> recSubPicSize= GetRecSubPicSize(subPicInfo[A], size);
+        auto info = subPicInfo[A];
+        Pel* subAlphaPtr = AlphaBuffer->data();
+        auto recAlphaPtr = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
+        for (int h = 0; h < recSubPicSize.second; ++h) {
+            for (int w = 0; w < recSubPicSize.first; ++w) {
+                Pel recPixel = subAlphaPtr[w] ;
+                Clip(recPixel, recAlphaPtr[w], 0, maxValue);
+            }
+            subAlphaPtr += info.w;
+            recAlphaPtr += info.strideW;
+        }
+        
+    }
+
     void RefLLSubPic(SubPicInfoMap& subPicInfo, const std::vector<SharedFrameBuffer>& subBandLL,
         std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize, std::vector<std::pair<uint32_t, uint32_t>> refSubPicLLSize, uint32_t bitDepth) {
         int32_t maxValue = (1 << bitDepth) - 1;
-        for (auto color : COLORS) {
+        for (auto color : YUVS) {
             auto info = subPicInfo[color];
             Pel* subBandLLPtr = subBandLL[color]->data();
             auto recLLPtr = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
@@ -116,7 +157,7 @@ namespace HFM {
                     const std::string& recFile, const std::string& recLLFile, uint32_t bitDepth, bool needRef) {
         uint32_t subPicId = subPicInfo[Y].id;
         if (!recFile.empty() || !recLLFile.empty() || needRef) {
-            for (auto color : COLORS) {
+            for (auto color : YUVS) {
                 for (auto & v : *subBands[LL][color]) {
                     v -= LL_SUB_BAND_ADD;
                 }
@@ -128,7 +169,7 @@ namespace HFM {
                     return status;
                 }
                 std::vector<std::pair<uint32_t, uint32_t>> recSubPicSize;
-                for (auto color : COLORS) {
+                for (auto color : YUVS) {
                     recSubPicSize.emplace_back(GetRecSubPicSize(subPicInfo[color], picSize[color]));
                 }
                 IDWT(subPicInfoRec[subPicId], subBands, tmpPicBuffer, tmpRowBuffer, recSubPicSize, bitDepth);
@@ -140,7 +181,7 @@ namespace HFM {
                     return status;
                 }
                 std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize;
-                for (auto color : COLORS) {
+                for (auto color : YUVS) {
                     recSubPicLLSize.emplace_back(GetRecSubPicSize(subPicLLInfoRec[subPicId][color], picLLSize[color]));
                 }
                 RecLLSubPic(subPicLLInfoRec[subPicId], subBands[LL], recSubPicLLSize, bitDepth);
@@ -148,7 +189,7 @@ namespace HFM {
             if (needRef) { 
                 std::vector<std::pair<uint32_t, uint32_t>> refSubPicLLSize;
                 std::vector<std::pair<uint32_t, uint32_t>> recSubPicLLSize;
-                for (auto color : COLORS) {
+                for (auto color : YUVS) {
                     auto info = subPicLLInfoRef[subPicId][color];
                     recSubPicLLSize.emplace_back(info.w, info.h);
                     refSubPicLLSize.emplace_back(GetRecSubPicSize(subPicLLInfoRef[subPicId][color], picLLSize[color]));

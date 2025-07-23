@@ -31,12 +31,13 @@ typedef struct
     int             DbitsNeeded;
     byte            *Dcodestrm;
     int             *Dcodestrm_len;
+    unsigned int    Dbuffer;
 } DecodingEnvironment;
 
 typedef DecodingEnvironment* DecodingEnvironmentPtr;
 
 int dec_readTuSize_CABAC(DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx);
-int dec_readPreMode_CABAC(DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, int component);
+int dec_readPredMode_CABAC(DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, int component, uint32_t cclm_enable);
 
 int dec_read_MB_Mode_CABAC(DecodingEnvironment *dep_dp, MotionInfoContexts *mot_ctx);
 int dec_read_inter_Mode_CABAC(DecodingEnvironment *dep_dp, MotionInfoContexts *mot_ctx);
@@ -45,7 +46,7 @@ int dec_read_inter_mvd_CABAC(DecodingEnvironment *dep_dp, MotionInfoContexts *mo
 int read_MVD_CABAC(Bitstream* bs_ll, DecodingEnvironment *dep_dp, MotionInfoContexts *mot_ctx, int is_MVDy, int cond);
 
 int dec_readCoeff4x4_CABAC(Bitstream*bs_ll,DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, pel* coeff,  int plane, int intra_pred_mode);
-int dec_readCoeff8x8_CABAC(Bitstream*bs_ll, DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, pel* coeff, int intra_pred_mode);
+int dec_readCoeff8x8_CABAC(Bitstream*bs_ll, DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, pel* coeff, int plane, int intra_pred_mode);
 int dec_readCoeff4x8_CABAC(Bitstream*bs_ll, DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, pel* coeff, int plane, int intra_pred_mode);
 
 int read_significant_coefficients(Bitstream*bs_ll, TextureInfoContexts *tex_ctx, DecodingEnvironmentPtr dep_dp,

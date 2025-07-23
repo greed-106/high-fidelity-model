@@ -34,6 +34,7 @@
 #include <array>
 #include <vector>
 #include "SubPicEnc.h"
+#include "BasicTypes.h"
 extern "C" {
 #include "vlc.h" 
 #include "cabac.h"
@@ -42,6 +43,7 @@ extern "C" {
 }
 #include "HFEncoder.h"
 #include "LLEncoder.h"
+#include "AlphaEncoder.h"
 #include "SubPic.h"
 #include "Timer.h"
 
@@ -51,25 +53,28 @@ namespace HFM {
         Encoder() = delete;
         Encoder(std::string recFile, std::string recLLFile, uint32_t frameCount, uint32_t bitDepth, uint32_t intraPeriod);
         ~Encoder();
-        void SetInput(std::shared_ptr<SubPicEnc> subPic, 
-            int32_t qp, int32_t cbQpOffset, int32_t crQpOffset, int32_t hlQpOffset, int32_t lhQpOffset, int32_t hhQpOffset,
-            bool qpDeltaEnable, bool hfTransformSkip);
+        void SetInput(PixelFormat pixelFormat, std::shared_ptr<SubPicEnc> subPic, AlphaInput alphaInput,
+            QPGroup qpGroup, bool qpDeltaEnable, bool hfTransformSkip, bool cclmEnable);
         void Encode(uint32_t currFrame);
         void StreamCabacCtxIni();
         void SubpicEncodingDone(uint32_t subpicIndex);
         void PicEncodingDone();
-        void DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight);
+        void DetermineMBdeltaQP(uint32_t bandWidth, uint32_t bandHeight, uint32_t thrParam, uint32_t frameQPoffset);
+        int DetermineSubPicQP(uint32_t subpicIndex, uint32_t totalSubPicNum, uint32_t bandWidth, uint32_t bandHeight);
         Bitstream bitstream_;
         int seqHeaderBytes_;
     private:
         std::string recFile_;
         std::string recLLFile_;
+        PixelFormat pixelFormat_;
         uint32_t frameCount_;
         uint32_t bitDepth_;
         uint32_t intraPeriod_;
-        uint8_t qp_;
-        int32_t cbQpOffset_, crQpOffset_, hlQpOffset_, lhQpOffset_, hhQpOffset_;
-        bool qpDeltaEnable_, hfTransformSkip_;
+        uint8_t baseQp_,frameQp_;
+        uint32_t inputAlphaFlag_;
+        uint32_t inputAlpha16bitFlag_;
+        QPGroup qpGroup_;
+        bool qpDeltaEnable_, hfTransformSkip_, cclmEnable_;
         std::ofstream recFileHandle_;
         std::ofstream recLLFileHandle_;
         std::shared_ptr<SubPicEnc> subPic_;
@@ -86,6 +91,7 @@ namespace HFM {
         Bitstream bitstreamVlcLl_;
         Bitstream bitstreamCabacHf_;
         Bitstream bitstreamVlcHf_;
+        Bitstream bitstreamVlcAlpha_;
         EncodingEnvironment eeCabacLl_;
         EncodingEnvironment eeCabacHf_;
         TextureInfoContexts texCtx_;

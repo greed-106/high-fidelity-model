@@ -31,7 +31,6 @@
 #include "BasicTypes.h"
 #include "Utils.h"
 #include "Wavelet.h"
-#include "Tool.h"
 
 namespace HFM {
     bool DWT53(const Pel* input, int len, Pel* subBandLF, Pel* subBandHF, int strideIn, int strideOut) {
@@ -189,7 +188,7 @@ namespace HFM {
     void IDWT(SubPicInfoMap& subPicInfo, SubBandMap& subBands, const SharedFrameBuffer& tmpFrameBuffer, const SharedFrameBuffer& rowBuffer, 
         std::vector<std::pair<uint32_t, uint32_t>> recSubPicSize, uint32_t bitDepth) {
         int32_t maxValue = (1 << bitDepth) - 1;
-        for (auto color : COLORS) {
+        for (auto color : YUVS) {
             auto info = subPicInfo[color];
             Pel* subBandLL = subBands[LL][color]->data();
             Pel* subBandLH = subBands[LH][color]->data();
@@ -219,12 +218,9 @@ namespace HFM {
             auto rowBufferPtr = rowBuffer->data();
             auto recPicPtr = reinterpret_cast<PelStorage*>(info.picHeaderPtr) + info.y * info.strideW + info.x;
             for (int h = 0; h < recSubPicSize[color].second; ++h) {
-#if DWT_97
                 if (color == Y) {
                     IntDeconvDWT97(tmpL, tmpH, subBandHorLen, rowBufferPtr);
-                } else 
-#endif
-                {
+                } else {
                     IDWT53(tmpL, tmpH, rowBufferPtr, horLen);
                 }
                 for (int w = 0; w < recSubPicSize[color].first; ++w) {

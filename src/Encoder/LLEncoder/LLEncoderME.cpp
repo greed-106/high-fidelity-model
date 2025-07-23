@@ -53,7 +53,7 @@ namespace HFM {
                 uint32_t dist = 0;
                 uint32_t rate = 0;
                 float RDCost = 0;
-                for (uint32_t compId = Y; compId < N_COLOR_COMP; compId++) {
+                for (uint32_t compId = Y; compId < N_YUV_COMP; compId++) {
                     uint32_t puWidth, puHeight;
                     if (compId == Y) {
                         puWidth = MB_SIZE;
@@ -86,7 +86,7 @@ namespace HFM {
                 uint32_t rate = 0;
                 float RDCost = 0;
                 MotionVector mv((dx << 1), (dy << 1));
-                for (uint32_t compId = Y; compId < N_COLOR_COMP; compId++) {
+                for (uint32_t compId = Y; compId < N_YUV_COMP; compId++) {
                     uint32_t puWidth, puHeight;
                     if (compId == Y) {
                         puWidth = MB_SIZE;

@@ -35,7 +35,7 @@
 namespace HFM {
     LLPuInter::LLPuInter() {
         pred_ = std::make_shared<PixelBuffer>(MB_SIZE*MB_SIZE, 0);
-        for (uint32_t i = 0; i < N_COLOR_COMP; i++) {
+        for (uint32_t i = 0; i < N_YUV_COMP; i++) {
             refWinYUV_[i] = std::make_shared<PixelBuffer>(REF_HOR_SIZE*REF_VER_SIZE, 0);
         }
     };

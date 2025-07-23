@@ -45,8 +45,8 @@
 //#include "cabac.h"
 //
 namespace HFM {
-    Decoder::Decoder(uint32_t bitDepth, std::string decFile, std::string decLLFile, const std::string& bitstreamFile, uint32_t intraPeriod)
-        : bitDepth_(bitDepth), decFile_(std::move(decFile)), decLLFile_(std::move(decLLFile)) {
+    Decoder::Decoder(uint32_t bitDepth, std::string decFile, std::string decLLFile, std::string decAlphaFile, const std::string& bitstreamFile, uint32_t intraPeriod)
+        : bitDepth_(bitDepth), decFile_(std::move(decFile)), decLLFile_(std::move(decLLFile)), decAlphaFile_(std::move(decAlphaFile)) {
         seqPicHeaderInfo_.frameCount = 1;
         //bitstream initialization
         bitstream_ = { 0 };
@@ -87,6 +87,15 @@ namespace HFM {
                 LOGI("open: %s\n", decLLFile_.c_str());
             }
         }
+
+        if (!decAlphaFile_.empty()) {
+            decAlphaFileHandle_.open(decAlphaFile_, std::ofstream::binary | std::ofstream::trunc);
+            if (decLLFileHandle_.fail()) {
+                LOGE("failed to open: %s\n", decAlphaFile_.c_str());
+            } else {
+                LOGI("open: %s\n", decAlphaFile_.c_str());
+            }
+        }
     }
 
     Decoder::~Decoder() {
@@ -96,22 +105,39 @@ namespace HFM {
         if (decLLFileHandle_.is_open()) {
             decLLFileHandle_.close();
         }
+        if (decAlphaFileHandle_.is_open()) {
+            decAlphaFileHandle_.close();
+        }
+        if (!decAlphaFile_.empty()) {
+            std::ifstream inF;
+            inF.open(decAlphaFile_, std::ifstream::binary);
+            if (inF.fail()) {
+                LOGE("failed to open: %s\n", decAlphaFile_.c_str());
+            }
+            inF.seekg(0, std::ios::end);
+            int64_t fileSize = inF.tellg();
+            if (inF.is_open()) {
+                inF.close();
+            }
+            if (fileSize == 0) {
+                const char * decAlphaFilePtr = decAlphaFile_.data();
+                std::remove(decAlphaFilePtr);
+            }
+        }
     }
 
     void Decoder::RenderingInformation(Bitstream* bitstream) {
         int cicpInfoPresentFlag = read_u_v(1, bitstream);
         int mdcvInfoPresentFlag = read_u_v(1, bitstream);
-        int clliInfoPresentFlag = read_u_v(1, bitstream);
         int dmPresentFlag = read_u_v(1, bitstream);
-        int reservedBits = read_u_v(4, bitstream);
+        int reservedBits = read_u_v(5, bitstream);
 
         if (cicpInfoPresentFlag) {
             int colourPrimaries = read_u_v(8, bitstream);
             int transferCharacteristics = read_u_v(8, bitstream);
             int matrixCoefficients = read_u_v(8, bitstream);
-            int imageFullRangeFlag = read_u_v(1, bitstream);
-            int chroma420SampleLocType = read_u_v(3, bitstream);
-            reservedBits = read_u_v(4, bitstream);
+            int videoFullRangeFlag = read_u_v(1, bitstream);
+            reservedBits = read_u_v(7, bitstream);
         }
         if (mdcvInfoPresentFlag) {
             int masteringDisplayColourPrimariesX[3] = { 0 };
@@ -122,10 +148,8 @@ namespace HFM {
             }
             int masteringDisplayWhitePointChromaticityX = read_u_v(16, bitstream);
             int masteringDisplayWhitePointChromaticityY = read_u_v(16, bitstream);
-            int masteringDisplayMaximumLuminance = read_u_v(32, bitstream);
-            int masteringDisplayMinimumLuminance = read_u_v(32, bitstream);
-        }
-        if (clliInfoPresentFlag) {
+            int masteringDisplayMaximumLuminance = read_u_v(16, bitstream);
+            int masteringDisplayMinimumLuminance = read_u_v(16, bitstream);
             int maximumContentLightLevel = read_u_v(16, bitstream);
             int maximumFrameAverageLightLevel = read_u_v(16, bitstream);
         }
@@ -143,12 +167,12 @@ namespace HFM {
     void Decoder::ParseSeqHeaderInfo(Bitstream* bitstream) {
         seqPicHeaderInfo_.profileIdc = read_u_v(8, bitstream);
         seqPicHeaderInfo_.levelIdc = read_u_v(8, bitstream);
-        seqPicHeaderInfo_.frameCount = read_u_v(2, bitstream) + 1;
+        seqPicHeaderInfo_.frameCount = read_u_v(8, bitstream) + 1;
         seqPicHeaderInfo_.frameRate = read_u_v(8, bitstream);
         seqPicHeaderInfo_.width = read_u_v(16, bitstream);
         seqPicHeaderInfo_.height = read_u_v(16, bitstream);
-        seqPicHeaderInfo_.subPicWidth = (read_u_v(3, bitstream) + 2) << 7;
-        seqPicHeaderInfo_.subPicHeight = (read_u_v(6, bitstream) + 2) << 7;
+        seqPicHeaderInfo_.subPicWidth = (read_u_v(8, bitstream) + 2) << 7;
+        seqPicHeaderInfo_.subPicHeight = (read_u_v(8, bitstream) + 1) << 7;
 
         if (seqPicHeaderInfo_.subPicWidth > 1024 || seqPicHeaderInfo_.subPicWidth < 256 || seqPicHeaderInfo_.subPicWidth % 128 != 0) {
             printf("sub pic width shall be in range of 256 to 1024 and multiple of 128\n");
@@ -165,14 +189,19 @@ namespace HFM {
             seqPicHeaderInfo_.subPicHeight = ((seqPicHeaderInfo_.height + 15) / 16) * 16;
 
         seqPicHeaderInfo_.bitDepth = read_u_v(4, bitstream) + 8;
-        seqPicHeaderInfo_.pixelFormat = read_u_v(2, bitstream); //0: YUV444, 1: YUV422, 2: YUV420
+        seqPicHeaderInfo_.pixelFormat = read_u_v(4, bitstream); //0: YUV444, 1: YUV422, 2: YUV420
+        int interlace_mode = read_u_v(2, bitstream);
+        int yuv444_by_yuv422_flag = read_u_v(1, bitstream);
+
+        int reservedBits = read_u_v(5, bitstream);
+        reservedBits = read_u_v(32, bitstream);
+        reservedBits = read_u_v(32, bitstream);
 
         RenderingInformation(bitstream);
-        int reservedBits = read_u_v(23, bitstream);
 
         //set sub info
         int subNumHor = (seqPicHeaderInfo_.width + seqPicHeaderInfo_.subPicWidth - 1) / seqPicHeaderInfo_.subPicWidth;
-        int subNumVer = (seqPicHeaderInfo_.height + seqPicHeaderInfo_.subPicHeight - 1) / seqPicHeaderInfo_.subPicHeight;
+        int subNumVer = (seqPicHeaderInfo_.height - seqPicHeaderInfo_.subPicHeight / 4) / seqPicHeaderInfo_.subPicHeight + 1;
         seqPicHeaderInfo_.numOfSubpic = subNumHor * subNumVer;
         subpicSyntaxInfo_.resize(seqPicHeaderInfo_.numOfSubpic);
         int rightSubpicWidth = ((seqPicHeaderInfo_.width + 15) / 16) * 16 - seqPicHeaderInfo_.subPicWidth * (subNumHor - 1);
@@ -189,8 +218,13 @@ namespace HFM {
     void Decoder::ParsePicHeaderInfo(Bitstream* bitstream) {
         seqPicHeaderInfo_.picSize = read_u_v(32, bitstream); //pic length
         seqPicHeaderInfo_.frameType = read_u_v(1, bitstream); //0: I, 1: P
+        seqPicHeaderInfo_.alphaFlag = read_u_v(1, bitstream);
+        seqPicHeaderInfo_.alpha16bitFlag = read_u_v(1, bitstream);
+        seqPicHeaderInfo_.alphaMapCodeMode = read_u_v(4, bitstream);
         seqPicHeaderInfo_.qpDeltaEnable = read_u_v(1, bitstream);
         seqPicHeaderInfo_.hfTransformSkip = read_u_v(1, bitstream);
+        seqPicHeaderInfo_.cclmEnable = read_u_v(1, bitstream);
+        int pic_output_flag = read_u_v(1, bitstream);
         int reservedBits = read_u_v(21, bitstream);
 
         if (seqPicHeaderInfo_.width > 4096) {
@@ -209,7 +243,7 @@ namespace HFM {
                 exit(-1);
             }
         }
-
+        /*
         for (int i = 0; i < seqPicHeaderInfo_.numOfSubpic; i++) {
             subpicSyntaxInfo_[i].subpicLlQpIndex = read_u_v(6, bitstream);
             subpicSyntaxInfo_[i].subpicHlQpIndexOffset = read_u_v(5, bitstream) - 12;
@@ -223,6 +257,7 @@ namespace HFM {
             subpicSyntaxInfo_[i].subpicLlVlcLength = read_u_v(24, bitstream);
             subpicSyntaxInfo_[i].subpicHfCabacLength = read_u_v(24, bitstream);
         }
+        */
     }
 
     void Decoder::ParseSeqPicHeaderInfo(int frameIdx, Bitstream* bitstream) {
@@ -239,7 +274,7 @@ namespace HFM {
             subPicInfoDec_ = subPicDec_->subPicInfo_;
             uint32_t picPixels[N_COLOR_COMP] {};
             for (auto color : COLORS) {
-                auto comp = color == Y ? LUMA : CHROMA;
+                auto comp = (color == Y || color == A) ? LUMA : CHROMA;
                 recPicSize_[comp] = subPicDec_->GetPicSizeRaw(color);
                 // rec image size is W x H, stored in W x H buffer
                 recPicSize_[comp].strideW = recPicSize_[comp].w;
@@ -253,21 +288,31 @@ namespace HFM {
             }
             if (!decPicBuffer_) {
                 decPicBuffer_ = std::make_shared<BufferStorage>(picPixels[Y] + picPixels[U] + picPixels[V], 0);
-                PelStorage* picHeaderPtr[N_COLOR_COMP] {};
+                PelStorage* picHeaderPtr[N_YUV_COMP] {};
                 picHeaderPtr[Y] = decPicBuffer_->data();
                 picHeaderPtr[U] = picHeaderPtr[Y] + picPixels[Y];
                 picHeaderPtr[V] = picHeaderPtr[U] + picPixels[U];
                 for (auto & info : subPicInfoDec_) {
-                    for (auto color: COLORS) {
+                    for (auto color: YUVS) {
                         info[color].picHeaderPtr = picHeaderPtr[color];
+                    }
+                }
+            }
+
+            if (!decAlphaFile_.empty() && !decPicAlphaBuffer_) {
+                if (!decPicAlphaBuffer_) {
+                    decPicAlphaBuffer_ = std::make_shared<BufferStorage>(picPixels[Y], 0);
+                    PelStorage* picAlphaHeaderPtr = decPicAlphaBuffer_->data();
+                    for (auto & info : subPicInfoDec_) {
+                        info[A].picHeaderPtr = picAlphaHeaderPtr;
                     }
                 }
             }
         }
         {
             subPicLLInfoDec_ = subPicDec_->subPicInfo_;
-            uint32_t picLLPixels[N_COLOR_COMP] {};
-            for (auto color : COLORS) {
+            uint32_t picLLPixels[N_YUV_COMP] {};
+            for (auto color : YUVS) {
                 auto picSize = subPicDec_->GetPicSizeRaw(color);
                 // low pass sub-band element count is (inputLen + 1) >> 1
                 uint32_t widthLL = (picSize.w + 1) >> 1;
@@ -287,23 +332,24 @@ namespace HFM {
 
                 if (!decPicLLBuffer_) {
                     decPicLLBuffer_ = std::make_shared<BufferStorage>(picLLPixels[Y] + picLLPixels[U] + picLLPixels[V], 0);
-                    PelStorage* picLLHeaderPtr[N_COLOR_COMP] {};
+                    PelStorage* picLLHeaderPtr[N_YUV_COMP] {};
                     picLLHeaderPtr[Y] = decPicLLBuffer_->data();
                     picLLHeaderPtr[U] = picLLHeaderPtr[Y] + picLLPixels[Y];
                     picLLHeaderPtr[V] = picLLHeaderPtr[U] + picLLPixels[U];
                     for (auto & info : subPicLLInfoDec_) {
-                        for (auto color: COLORS) {
+                        for (auto color: YUVS) {
                             info[color].picHeaderPtr = picLLHeaderPtr[color];
                         }
                     }
                 }
             }
+
         }
         {
             if (!refPicLLBuffer_) {
                 subPicLLInfoRef_ = subPicDec_->subPicInfo_;
-                uint32_t picLLPixels[N_COLOR_COMP] {};
-                for (auto color : COLORS) {
+                uint32_t picLLPixels[N_YUV_COMP] {};
+                for (auto color : YUVS) {
                     auto picSize = subPicDec_->GetPicSizeRaw(color);
                     uint32_t widthLL = (picSize.strideW + 1) >> 1;
                     uint32_t heightLL = (picSize.strideH + 1) >> 1;
@@ -319,12 +365,12 @@ namespace HFM {
                     //picLLSize_.emplace_back(widthLL, heightLL);
                 }
                 refPicLLBuffer_ = std::make_shared<BufferStorage>(picLLPixels[Y] + picLLPixels[U] + picLLPixels[V], 0);
-                PelStorage* picLLHeaderPtr[N_COLOR_COMP] {};
+                PelStorage* picLLHeaderPtr[N_YUV_COMP] {};
                 picLLHeaderPtr[Y] = refPicLLBuffer_->data();
                 picLLHeaderPtr[U] = picLLHeaderPtr[Y] + picLLPixels[Y];
                 picLLHeaderPtr[V] = picLLHeaderPtr[U] + picLLPixels[U];
                 for (auto & info : subPicLLInfoRef_) {
-                    for (auto color: COLORS) {
+                    for (auto color: YUVS) {
                         info[color].picHeaderPtr = picLLHeaderPtr[color];
                     }
                 }
@@ -332,12 +378,37 @@ namespace HFM {
         }
     }
 
+    void Decoder::ParseSubPicHeaderInfo(Bitstream* bitstream, int i, uint32_t alphaFlag) {
+            subpicSyntaxInfo_[i].subpicLlQpIndex = read_u_v(6, bitstream);
+            subpicSyntaxInfo_[i].subpicHlQpIndexOffset = read_u_v(5, bitstream) - 12;
+            subpicSyntaxInfo_[i].subpicLhQpIndexOffset = read_u_v(5, bitstream) - 12;
+            subpicSyntaxInfo_[i].subpicHhQpIndexOffset = read_u_v(5, bitstream) - 12;
+            subpicSyntaxInfo_[i].subpicCbQpIndexOffset = read_u_v(5, bitstream) - 12;
+            subpicSyntaxInfo_[i].subpicCrQpIndexOffset = read_u_v(5, bitstream) - 12;
+            int reservedBits = read_u_v(9, bitstream);
+            subpicSyntaxInfo_[i].subpicLength = read_u_v(32, bitstream);
+            subpicSyntaxInfo_[i].subpicLlCabacLength = read_u_v(32, bitstream);
+            subpicSyntaxInfo_[i].subpicLlVlcLength = read_u_v(32, bitstream);
+            subpicSyntaxInfo_[i].subpicHfCabacLength = read_u_v(32, bitstream);
+            if (alphaFlag) {
+                subpicSyntaxInfo_[i].subpicHfVlcLength = read_u_v(32, bitstream);
+            } else {
+                subpicSyntaxInfo_[i].subpicHfVlcLength = subpicSyntaxInfo_[i].subpicLength - subpicSyntaxInfo_[i].subpicLlCabacLength\
+                    - subpicSyntaxInfo_[i].subpicLlVlcLength - subpicSyntaxInfo_[i].subpicHfCabacLength;
+            }
+    }
     void Decoder::Decode(uint32_t currFrame, long long& totalBit, long long& cabacBit) {
         auto frameType = static_cast<FrameType>(currFrame % intraPeriod_);
         bool needRef = frameType == FRAME_I && intraPeriod_ > 1;
         auto llDecoder = std::make_shared<LLDecoder>();
         auto hfDecoder = std::make_shared<HFDecoder>();
+        auto alphaDecoder = std::make_shared<AlphaDecoder>();
         for (int subPicIndex = 0; subPicIndex < seqPicHeaderInfo_.numOfSubpic; subPicIndex++) {
+            ParseSubPicHeaderInfo(&bitstream_, subPicIndex, seqPicHeaderInfo_.alphaFlag);
+            curBitstreamPos_ += 21;
+            if (seqPicHeaderInfo_.alphaFlag) {
+                curBitstreamPos_ += 4;
+            }
             Clip<uint32_t, uint32_t>(subpicSyntaxInfo_[subPicIndex].subpicLlQpIndex, qp_, 0, 39);
             if (frameType == FRAME_P) {
                 subPicDec_->SetLLReference(subPicLLInfoRef_[subPicIndex]);
@@ -364,9 +435,21 @@ namespace HFM {
                 LOGE("%s\n", "decode reconstructing image failed.");
             }
 
+            if (seqPicHeaderInfo_.alphaFlag) {
+                (*subPicDec_->alphaBuffer_).resize(0);
+                alphaDecoder->Set(subpicSyntaxInfo_[subPicIndex].subpicWidth, subpicSyntaxInfo_[subPicIndex].subpicHeight, subPicDec_->alphaBuffer_, seqPicHeaderInfo_.alpha16bitFlag, &bitstream_, &subpicSyntaxInfo_[subPicIndex]);
+                alphaDecoder->AlphaDecode();
+                if (!decAlphaFile_.empty()) {
+                    RecAlphaSubPic(subPicInfoDec_[subPicIndex], subPicDec_->alphaBuffer_, picWHRaw_[A], (seqPicHeaderInfo_.alpha16bitFlag?16:8));
+                }
+            }
             // TODO: stream update
-            bitstream_.streamBuffer += subpicSyntaxInfo_[subPicIndex].subpicLength;
-            curBitstreamPos_ += subpicSyntaxInfo_[subPicIndex].subpicLength;
+            bitstream_.streamBuffer += (subpicSyntaxInfo_[subPicIndex].subpicLength-21);
+            curBitstreamPos_ += (subpicSyntaxInfo_[subPicIndex].subpicLength-21);
+            if (seqPicHeaderInfo_.alphaFlag) {
+                bitstream_.streamBuffer -= 4;
+                curBitstreamPos_ -= 4;
+            }
             totalBit += subpicSyntaxInfo_[subPicIndex].subpicLength;
             cabacBit += subpicSyntaxInfo_[subPicIndex].subpicLlCabacLength + subpicSyntaxInfo_[subPicIndex].subpicHfCabacLength;
         }
@@ -378,6 +461,10 @@ namespace HFM {
         if (!decLLFile_.empty()) {
             WriteRecPic(decPicLLBuffer_, picWHRawLL_, decLLFileHandle_);
         }
+        if (seqPicHeaderInfo_.alphaFlag && !decAlphaFile_.empty()) {
+            WriteRecAlphaPic(decPicAlphaBuffer_, seqPicHeaderInfo_.alpha16bitFlag, picWHRaw_[A], decAlphaFileHandle_);
+        }
+
     }
 
 }

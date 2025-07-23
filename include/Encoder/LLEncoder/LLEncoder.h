@@ -44,15 +44,15 @@
 #include "Const.h"
 #include "LLEncoderME.h"
 #include "Utils.h"
-#include "Tool.h"
+#include <cassert>
 
 namespace HFM {
     class LLEncoder {
     public:
         LLEncoder();
         ~LLEncoder();
-        void Set(uint32_t llBandWidth_, uint32_t llBandHeight_, std::vector<SharedFrameBuffer>& llBandPic, std::vector<SharedFrameBuffer>& llBandPicRec, uint8_t qp_, int32_t cbQpOffset, int32_t crQpOffset);
-        void Set(uint32_t llBandWidth_, uint32_t llBandHeight_, std::vector<SharedFrameBuffer>& llBandPic, std::vector<SharedFrameBuffer>& llBandPicRec, std::vector<SharedFrameBuffer>& llBandPicRef, uint8_t qp_, int32_t cbQpOffset, int32_t crQpOffset);
+        void Set(PixelFormat pixelFormat, uint32_t llBandWidth_, uint32_t llBandHeight_, std::vector<SharedFrameBuffer>& llBandPic, std::vector<SharedFrameBuffer>& llBandPicRec, uint8_t qp_, int32_t cbQpOffset, int32_t crQpOffset, bool cclmEnable);
+        void Set(PixelFormat pixelFormat, uint32_t llBandWidth_, uint32_t llBandHeight_, std::vector<SharedFrameBuffer>& llBandPic, std::vector<SharedFrameBuffer>& llBandPicRec, std::vector<SharedFrameBuffer>& llBandPicRef, uint8_t qp_, int32_t cbQpOffset, int32_t crQpOffset, bool cclmEnable);
         void GetPuWH(uint8_t tuSize);
         void LLEncode(Bitstream *bitstreamVlcLl, EncodingEnvironment *eeCabacLl, TextureInfoContexts *texCtx, MotionInfoContexts *motCtx, int frameType, bool qpDelta, std::vector<std::vector<int16_t>>& mbDeltaQP);
         void LLEncodePu(uint8_t tuSize, bool interPredFlag_, uint8_t intraPredMode, bool withResi = true);
@@ -79,6 +79,8 @@ namespace HFM {
         std::vector<SharedFrameBuffer>* llBandPicRef_;
         std::vector<SharedFrameBuffer>* llBandPicRec_;
         //std::unordered_map<ColorComp, SubPicInfo>& subPicInfo_;
+        PixelFormat pixelFormat_;
+        bool cclmEnable_;
         uint32_t llBandWidth_;
         uint32_t llBandHeight_;
         uint8_t qp_[N_COLOR_COMP];

@@ -59,8 +59,12 @@ SeqPicHeaderInfo ParsePicHeader(const Arguments& args)
             args.subPicWidth, args.subPicHeight,
             args.bitDepth,
             static_cast<uint32_t>(args.pixelFormat),
+            args.inputAlphaFlag,
+            args.inputAlpha16bitFlag,
+            0,//alphaMapCodeMode
             args.qpDeltaEnable,
-            args.hfTransformSkip};
+            args.hfTransformSkip,
+            args.cclmEnable};
 }
 
 int main(int argc, const char** argv) {
@@ -78,9 +82,12 @@ int main(int argc, const char** argv) {
     LOGI("encoder parameters:\n %s", args.print().c_str());
 
     auto pixelFormat = static_cast<PixelFormat>(args.pixelFormat);
+    AlphaInput alphaInput = {args.inputAlphaFlag, args.inputAlpha16bitFlag, args.inputAlphaFile};
+    QPGroup qpGroup = {args.qp, args.pFrameQpOffset, args.cbQpOffset, args.crQpOffset,
+        args.hlQpOffset, args.lhQpOffset, args.hhQpOffset};
     auto encoder = std::make_shared<Encoder>(args.recFile, args.recLLFile,
                                              args.frameCount, args.bitDepth, args.intraPeriod);
-    auto video = std::make_shared<Video>(pixelFormat, args.frameCount, args.width, args.height, args.inputFile);
+    auto video = std::make_shared<Video>(pixelFormat, args.frameCount, args.width, args.height, args.inputFile, alphaInput);
     auto subPic = std::make_shared<SubPicEnc>(pixelFormat, args.width, args.height, args.subPicWidth, args.subPicHeight);
     subPic->UpdateInfo(video->GetCurrFrame());
     if (!args.dwtSubPicPath.empty()) {
@@ -91,13 +98,45 @@ int main(int argc, const char** argv) {
     for (int i = 0; i < args.frameCount; ++i) {
         LOGI("encode frame %d\n", i);
         std::string frameDesc{"frame: " + std::to_string(i)};
-        BitstreamInit(bitstream, 29);
-        encoder->seqHeaderBytes_ = WriteSeqPicHeader(i, args.intraPeriod, &seqPicHeaderInfo, bitstream);
+        BitstreamInit(bitstream, 32);
         subPic->GetFrame(video->MoveToNextFrame());
         timer.Start(frameDesc);
-        encoder->SetInput(subPic, args.qp, args.cbQpOffset, args.crQpOffset, args.hlQpOffset, args.lhQpOffset, args.hhQpOffset,
-            args.qpDeltaEnable, args.hfTransformSkip);
-        encoder->Encode(i);
+        while (1) {
+            encoder->seqHeaderBytes_ = WriteSeqPicHeader(i, args.intraPeriod, &seqPicHeaderInfo, bitstream);
+            encoder->SetInput(pixelFormat, subPic, alphaInput, qpGroup,
+                args.qpDeltaEnable, args.hfTransformSkip, args.cclmEnable);
+            encoder->Encode(i);
+            if (args.qpDeltaEnable) {
+                int bitPixel = (args.pixelFormat == 0) ? 3 : 2;
+                float compressRatio = (args.width * args.height * bitPixel * args.bitDepth) / (bitstream->byte_pos * 8.0);
+                if (compressRatio < 8) {
+                    if (compressRatio < 8 / 1.21) {
+                        qpGroup.qp += 5;
+                    }
+                    else if (compressRatio < 8 / 1.15) {
+                        qpGroup.qp += 4;
+                    }
+                    else if (compressRatio < 8 / 1.10) {
+                        qpGroup.qp += 3;
+                    }
+                    else if (compressRatio < 8 / 1.05) {
+                        qpGroup.qp += 2;
+                    }
+                    else {
+                        qpGroup.qp += 1;
+                    }
+                    BitstreamClean(bitstream, 32);
+                }
+                else
+                {
+                    qpGroup.qp = args.qp;
+                    break;
+                }
+            }
+            else {
+                break;
+            }
+        }
         BitstreamWrite(i, bitstream, (char*) args.bitstream.data());
         timer.End(frameDesc);
     }
