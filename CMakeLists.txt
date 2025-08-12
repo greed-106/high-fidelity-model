@@ -3,6 +3,7 @@ project("HFM")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(ENCODER "EncoderApp")
 set(DECODER "DecoderApp")
 add_definitions("-DLINUX")
